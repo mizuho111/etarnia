@@ -1,0 +1,11 @@
+{
+  "name": "クロニクル・オブ・エターニア",
+  "short_name": "エターニア",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07090f",
+  "theme_color": "#07090f",
+  "lang": "ja"
+}
