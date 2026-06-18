@@ -273,6 +273,30 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   animation:boomA .75s ease-out forwards}
 @keyframes boomA{0%{opacity:0;transform:scale(.15)}12%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.35)}}
 @keyframes shake{0%,100%{transform:translate(0,0)}15%{transform:translate(-9px,5px)}30%{transform:translate(9px,-5px)}45%{transform:translate(-7px,-5px)}60%{transform:translate(7px,5px)}75%{transform:translate(-4px,3px)}}
+
+/* CHANT (詠唱) */
+.chant{display:none;position:fixed;inset:0;z-index:640;cursor:pointer;overflow:hidden;
+  background:radial-gradient(ellipse at 50% 58%,rgba(70,0,0,.72),rgba(8,0,4,.94));
+  flex-direction:column;align-items:center;justify-content:center;gap:26px;animation:cf .4s ease}
+.chant.show{display:flex}
+.chant-circle{position:absolute;width:320px;height:320px;border-radius:50%;
+  background:conic-gradient(from 0deg,rgba(255,60,0,0),rgba(255,90,0,.55),rgba(255,210,90,.25),rgba(255,60,0,0));
+  filter:blur(2px);animation:spin 3.2s linear infinite;opacity:.8;
+  box-shadow:0 0 90px rgba(255,80,0,.55),inset 0 0 70px rgba(255,160,40,.45)}
+.chant-circle::after{content:'';position:absolute;inset:40px;border-radius:50%;
+  border:2px solid rgba(255,150,60,.6);box-shadow:0 0 34px rgba(255,120,40,.6),inset 0 0 24px rgba(255,120,40,.4)}
+.chant-circle::before{content:'';position:absolute;inset:90px;border-radius:50%;
+  border:1px dashed rgba(255,200,120,.5);animation:spin 5s linear infinite reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+.chant-tx{position:relative;z-index:2;max-width:88%;text-align:center;font-size:18px;font-weight:800;
+  line-height:1.75;color:#ffe6c0;text-shadow:0 0 14px rgba(255,90,20,.9),0 2px 6px #000;padding:0 16px}
+.chant-tx.final{font-size:clamp(28px,9vw,40px);color:#fff;letter-spacing:2px;
+  text-shadow:0 0 26px rgba(255,120,20,1),0 0 46px rgba(255,60,0,.85)}
+@keyframes chln{from{opacity:0;transform:translateY(16px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+.chant-skip{position:absolute;bottom:22px;right:16px;z-index:3;background:rgba(0,0,0,.5);
+  border:1px solid var(--muted);color:var(--m2);padding:7px 14px;border-radius:14px;font-size:11px;cursor:pointer}
+.chant-hint{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:3;
+  color:rgba(255,200,150,.5);font-size:10px;animation:pp 1s ease-in-out infinite alternate}
 </style>
 </head>
 <body>
@@ -413,6 +437,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
     <div class="cuttx" id="cuttx"></div>
     <div class="cuthint">▶ タップで進む</div>
   </div>
+</div>
+
+<!-- CHANT (詠唱) -->
+<div class="chant" id="chant" onclick="chantAdvance()">
+  <div class="chant-circle"></div>
+  <div class="chant-tx" id="chanttx"></div>
+  <div class="chant-hint">▶ タップで早送り</div>
+  <button class="chant-skip" onclick="skipChant(event)">スキップ ▶▶</button>
 </div>
 
 <!-- ENDING -->
@@ -1399,11 +1431,20 @@ function useBSk(id){
     else{e.hp=0;popDmg('9999','#ff3030',false);setLog(`💥 メガンテ！アルシアは自爆し、${e.name}を道連れに葬り去った！`);}
     p.hp=1;popDmg('HP1','#e84a4a',true);
   } else if(sk.t==='explosion'){
-    // エクスプロージョン：全魔力の超火力。撃った後は魔力切れで動けない
-    const dmg=350+p.mag*3-Math.floor(e.def*.2);
-    e.hp=Math.max(0,e.hp-dmg); popDmg(dmg,'#ff5500',false);
-    p.mp=0; G.buffs.collapse=1; explosionFx();
-    setLog(`🌋 <span class="hl">エクスプロージョン！！</span> 全魔力を解き放つ大爆発が${e.name}を飲み込んだ！<span class="hl">${dmg}</span>の超ダメージ！`);
+    // エクスプロージョン：長い詠唱 → 全魔力の超火力 → 詠唱後は硬直
+    setLog('🌋 アルシアが長い詠唱を始めた……');
+    startChant(()=>{
+      if(!G.inBattle) return;
+      const dmg=350+p.mag*3-Math.floor(e.def*.2);
+      e.hp=Math.max(0,e.hp-dmg); popDmg(dmg,'#ff5500',false);
+      p.mp=0; G.buffs.collapse=1; explosionFx();
+      setLog(`🌋 <span class="hl">エクスプロージョン！！</span> 全魔力を解き放つ大爆発が${e.name}を飲み込んだ！<span class="hl">${dmg}</span>の超ダメージ！`);
+      tickStatus(); updateBUI();
+      if(e.hp<=0){ battleWin(); return; }
+      if(p.hp<=0){ battleLose(); return; }
+      setTimeout(enemyTurn,1100);
+    });
+    return; // 共通末尾(即enemyTurn)をスキップ。詠唱完了後に処理する
   } else {
     const dmg=Math.max(1,sk.pow+Math.floor(p.mag*.6)-Math.floor(e.def*.3)+Math.floor(Math.random()*12));
     e.hp=Math.max(0,e.hp-dmg);
@@ -1476,6 +1517,40 @@ function explosionFx(){
   const bs=document.getElementById('bs');
   if(bs){ bs.style.animation='shake .5s'; setTimeout(()=>{bs.style.animation='';},520); }
 }
+
+// ── エクスプロージョン詠唱演出 ──
+const MEGUMIN_CHANT=[
+  '我が名はアルシア……紅魔の血を継ぎし者、爆裂魔法を操りし者なり。',
+  '漆黒よりも昏く、深紅よりも紅き、我が内に眠りし力よ。',
+  '囚われし混沌の奔流――その封印を、今ここに解き放たん。',
+  '我が魔力のすべてを糧とし、いざ顕現せよ、破壊の化身。',
+  '天を焦がす爆炎、地を穿つ閃光、すべてを無に帰す光となれ。',
+  'いざ、我が眼前の敵を撃ち滅ぼさんことを願う……！',
+  'エクスプロージョン！！！',
+];
+let _chant={i:0,timer:null,done:null};
+function startChant(onDone){
+  _chant={i:0,timer:null,done:onDone};
+  document.getElementById('chant').classList.add('show');
+  chantShow();
+}
+function chantShow(){
+  if(_chant.i>=MEGUMIN_CHANT.length){ chantFinish(); return; }
+  const last=_chant.i===MEGUMIN_CHANT.length-1;
+  const tx=document.getElementById('chanttx');
+  tx.className='chant-tx'+(last?' final':'');
+  tx.innerHTML=MEGUMIN_CHANT[_chant.i];
+  tx.style.animation='none'; void tx.offsetWidth; tx.style.animation='chln .45s ease';
+  _chant.timer=setTimeout(()=>{ _chant.i++; chantShow(); }, last?1200:1600);
+}
+function chantAdvance(){ if(_chant.timer){clearTimeout(_chant.timer);_chant.timer=null;} _chant.i++; chantShow(); }
+function chantFinish(){
+  if(_chant.timer) clearTimeout(_chant.timer);
+  document.getElementById('chant').classList.remove('show');
+  const cb=_chant.done; _chant={i:0,timer:null,done:null};
+  if(cb) cb();
+}
+function skipChant(ev){ if(ev) ev.stopPropagation(); chantFinish(); }
 
 // ── クエスト進行・報酬 ──
 function checkQuestDone(q){
