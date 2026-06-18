@@ -1389,12 +1389,12 @@ function triggerBattle(boss=false){
                :                  [ENEMIES[0],ENEMIES[1],ENEMIES[2],ENEMIES[3],ENEMIES[8]];
     base={...pool[Math.floor(Math.random()*pool.length)]};
   }
-  // レベルに応じた敵スケール（攻撃の伸びは緩やか＝レベル上げが有利に働く）
-  const lv=G.p.lv;
-  const hpSc =1+(lv-1)*0.20;   // HPはそこそこ増える
-  const atkSc=1+(lv-1)*0.10;   // 攻撃の伸びは抑える（一撃死を防ぐ）
-  const defSc=1+(lv-1)*0.07;
-  const rwSc =1+(lv-1)*0.15;   // 経験値・ゴールドも増える
+  // 敵スケールはLv8相当で頭打ち（高レベルでの数値インフレを防ぎ、雑魚を“追い越す”感を出す）
+  const lv=G.p.lv, eff=Math.min(lv,8);
+  const hpSc =1+(eff-1)*0.16;
+  const atkSc=1+(eff-1)*0.08;  // 攻撃の伸びは特に緩やか（一撃死を防ぐ）
+  const defSc=1+(eff-1)*0.06;
+  const rwSc =1+(eff-1)*0.12;  // 経験値・ゴールドの伸びも頭打ち
   G.enemy={...base,hp:Math.floor(base.mhp*hpSc),mhp:Math.floor(base.mhp*hpSc),
     atk:Math.floor(base.atk*atkSc),def:Math.floor(base.def*defSc),
     xp:Math.floor(base.xp*rwSc),gold:Math.floor(base.gold*rwSc),status:[]};
