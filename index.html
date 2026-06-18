@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>⚔️ クロニクル・オブ・エターニア</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--bg:#07090f;--p1:#0e1420;--p2:#151e30;--p3:#1a2540;--b1:#243050;--b2:#2e4070;
+--gold:#f5c842;--g2:#b8960e;--g3:#ffeaa0;--blue:#4a8fe8;--green:#27c96a;--red:#e84a4a;
+--purple:#a855f7;--cyan:#00d4ff;--orange:#ff8c42;--text:#c8deff;--muted:#5a7090;--m2:#8a9ab8}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;font-size:13px;color:var(--text)}
+.screen{display:none;width:100%;height:100vh;flex-direction:column;position:absolute;top:0;left:0}
+.screen.active{display:flex}
+
+/* TITLE */
+#ts{background:radial-gradient(ellipse at 50% 40%,#0d1a40,#07090f);align-items:center;justify-content:center;gap:20px}
+.t-stars{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.sp{position:absolute;width:2px;height:2px;background:#fff;border-radius:50%;animation:tw var(--d,3s) ease-in-out infinite var(--dl,0s)}
+@keyframes tw{0%,100%{opacity:.15}50%{opacity:1}}
+.t-emb{font-size:68px;animation:ef 4s ease-in-out infinite;filter:drop-shadow(0 0 24px rgba(245,200,66,.6))}
+@keyframes ef{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-12px) rotate(2deg)}}
+.t-h1{font-size:26px;font-weight:900;letter-spacing:2px;text-align:center;
+  background:linear-gradient(135deg,#f5c842,#fff 40%,#a855f7 70%,#00d4ff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1.3}
+.t-sub{color:var(--muted);font-size:10px;letter-spacing:4px;text-align:center}
+.t-div{width:180px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.t-btn{background:linear-gradient(135deg,#1a2a6e,#2a3a8e);border:2px solid var(--gold);
+  color:var(--gold);padding:15px 44px;border-radius:40px;font-size:16px;font-weight:800;
+  cursor:pointer;letter-spacing:2px;box-shadow:0 0 28px rgba(245,200,66,.3);transition:all .2s}
+.t-btn:active{transform:scale(.95)}
+
+/* TOPBAR */
+.topbar{background:linear-gradient(180deg,var(--p1),rgba(14,20,32,.95));border-bottom:1px solid var(--b1);
+  padding:6px 10px;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.portrait{width:38px;height:38px;border-radius:10px;flex-shrink:0;
+  background:linear-gradient(135deg,#1a2a6e,#5a20ae);display:flex;align-items:center;justify-content:center;
+  font-size:22px;border:2px solid var(--gold);box-shadow:0 0 8px rgba(245,200,66,.3)}
+.ci{flex-shrink:0}.cn{font-size:12px;font-weight:700;color:var(--gold)}.cc{font-size:9px;color:var(--m2)}
+.bw{flex:1;display:flex;flex-direction:column;gap:3px}
+.br{display:flex;align-items:center;gap:4px}
+.bl{font-size:9px;font-weight:800;width:16px;flex-shrink:0}
+.bl.h{color:var(--red)}.bl.m{color:var(--blue)}.bl.x{color:var(--gold)}
+.bg{flex:1;height:7px;background:#0a1020;border-radius:4px;overflow:hidden;border:1px solid var(--b1)}
+.bf{height:100%;border-radius:4px;transition:width .5s}
+.bfh{background:linear-gradient(90deg,#8e1010,#e84a4a)}
+.bfm{background:linear-gradient(90deg,#102080,#4a8fe8)}
+.bfx{background:linear-gradient(90deg,#806000,#f5c842)}
+.bn{font-size:9px;color:var(--m2);width:36px;text-align:right;flex-shrink:0}
+.gb{background:var(--p2);border:1px solid var(--g2);border-radius:8px;padding:4px 8px;color:var(--gold);font-size:11px;font-weight:800;flex-shrink:0}
+
+/* MAP */
+.mw{flex:1;position:relative;overflow:hidden}
+#mc{display:block;image-rendering:pixelated}
+.minimap{position:absolute;top:8px;right:8px;width:80px;height:80px;border-radius:8px;
+  border:2px solid var(--b2);overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.6)}
+#mc2{display:block;width:80px;height:80px;image-rendering:pixelated}
+.ll{position:absolute;top:8px;left:50%;transform:translateX(-50%);
+  background:rgba(7,9,15,.85);border:1px solid var(--b2);color:var(--cyan);
+  font-size:11px;padding:4px 14px;border-radius:14px;pointer-events:none;
+  white-space:nowrap;backdrop-filter:blur(4px)}
+.wi{position:absolute;top:36px;left:50%;transform:translateX(-50%);display:flex;gap:6px;pointer-events:none}
+.wb{background:rgba(7,9,15,.8);border:1px solid var(--b1);border-radius:10px;padding:2px 8px;font-size:9px;color:var(--m2)}
+
+/* DPAD */
+.dpad{position:absolute;bottom:14px;left:14px;display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,46px);gap:3px}
+.dp{background:rgba(14,20,32,.88);border:1px solid var(--b2);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;
+  color:var(--m2);transition:transform .08s;box-shadow:0 2px 6px rgba(0,0,0,.4);user-select:none;
+  touch-action:none;-webkit-user-select:none}
+.dp:active{background:var(--p3);transform:scale(.9)}
+.dp.e{background:transparent;border:none;box-shadow:none;pointer-events:none}
+.apad{position:absolute;bottom:12px;right:12px;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.ar{display:flex;gap:6px}
+.ab{background:rgba(14,20,32,.88);border:1px solid;border-radius:10px;padding:8px 10px;
+  cursor:pointer;font-size:10px;font-weight:700;display:flex;align-items:center;gap:3px;
+  transition:all .15s;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.ab:active{transform:scale(.9)}
+.ab1{border-color:var(--red);color:var(--red)}.ab2{border-color:var(--purple);color:var(--purple)}
+.ab3{border-color:var(--green);color:var(--green)}.ab4{border-color:var(--cyan);color:var(--cyan)}
+
+/* NPC BOX */
+.nbox{position:absolute;bottom:110px;left:12px;right:12px;
+  background:linear-gradient(135deg,rgba(10,14,26,.97),rgba(14,20,36,.97));
+  border:2px solid var(--gold);border-radius:14px;padding:14px;display:none;z-index:60;
+  box-shadow:0 4px 24px rgba(0,0,0,.8),0 0 20px rgba(245,200,66,.15)}
+.nbox.show{display:block}
+.na{font-size:30px;float:left;margin-right:10px}
+.nh{color:var(--gold);font-weight:800;font-size:13px;margin-bottom:4px}
+.nb{color:var(--text);font-size:12px;line-height:1.7}
+.nc{color:var(--muted);font-size:9px;text-align:right;margin-top:6px;clear:both}
+
+/* ENTER PROMPT */
+.ep{position:absolute;bottom:112px;left:50%;transform:translateX(-50%);
+  background:rgba(7,9,15,.9);border:2px solid var(--cyan);border-radius:20px;
+  padding:8px 20px;color:var(--cyan);font-size:12px;font-weight:700;cursor:pointer;
+  display:none;z-index:55;box-shadow:0 0 16px rgba(0,212,255,.3);
+  animation:pp .8s ease-in-out infinite alternate}
+@keyframes pp{from{box-shadow:0 0 8px rgba(0,212,255,.2)}to{box-shadow:0 0 20px rgba(0,212,255,.5)}}
+
+/* BOTTOM NAV */
+.bnav{background:linear-gradient(0,var(--p1),rgba(14,20,32,.95));border-top:1px solid var(--b1);display:flex;flex-shrink:0}
+.nvb{flex:1;padding:8px 2px;text-align:center;cursor:pointer;font-size:9px;color:var(--muted);
+  border:none;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;transition:color .15s}
+.nvb .ni{font-size:18px}.nvb.on{color:var(--gold)}
+
+/* INDOOR */
+#is{background:var(--bg)}
+.ihd{background:linear-gradient(135deg,var(--p1),var(--p2));border-bottom:2px solid var(--b2);
+  padding:12px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.iico{font-size:32px}.itit{font-size:17px;font-weight:800;color:var(--gold)}.isub{font-size:10px;color:var(--m2)}
+.bkb{margin-left:auto;background:var(--p3);border:1px solid var(--b2);color:var(--m2);padding:8px 14px;border-radius:10px;font-size:12px;cursor:pointer}
+.ib{flex:1;overflow-y:auto;padding:14px}
+.ic-wrap{text-align:center;margin-bottom:12px}
+#ic{border:2px solid var(--b2);border-radius:8px}
+.imenu{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.imbtn{background:linear-gradient(135deg,var(--p2),var(--p3));border:2px solid var(--b2);border-radius:12px;
+  padding:16px 10px;text-align:center;cursor:pointer;transition:all .15s}
+.imbtn:active{transform:scale(.95);border-color:var(--gold)}
+.imbico{font-size:30px;margin-bottom:6px}.imbn{font-size:12px;font-weight:700}.imbd{font-size:10px;color:var(--m2);margin-top:2px}
+.slist{display:flex;flex-direction:column;gap:8px}
+.si{background:var(--p2);border:1px solid var(--b1);border-radius:10px;padding:11px;
+  display:flex;align-items:center;gap:10px;cursor:pointer;transition:border-color .15s}
+.si:active{border-color:var(--gold)}
+.siico{font-size:26px}.sii{flex:1}.sin{font-size:12px;font-weight:700}.sid{font-size:10px;color:var(--m2);margin-top:2px}
+.sip{color:var(--gold);font-size:13px;font-weight:800}
+.innbtn{background:linear-gradient(135deg,var(--p2),var(--p3));border:2px solid var(--cyan);color:var(--cyan);
+  border-radius:12px;padding:16px;text-align:center;cursor:pointer;font-size:14px;font-weight:700;margin-bottom:12px;
+  box-shadow:0 0 14px rgba(0,212,255,.15)}
+.innbtn:active{transform:scale(.97)}
+.ininf{color:var(--m2);font-size:11px;text-align:center;line-height:1.9}
+
+/* BATTLE */
+#bs{background:radial-gradient(ellipse at 50% 20%,#160828,#07090f)}
+.bbg{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.bp{position:absolute;border-radius:50%;animation:bpa var(--d,4s) ease-in-out infinite var(--dl,0s)}
+@keyframes bpa{0%,100%{opacity:0}50%{opacity:.5}}
+.btp{background:linear-gradient(180deg,rgba(14,20,32,.95),transparent);padding:8px 10px;
+  display:flex;align-items:center;gap:8px;flex-shrink:0;position:relative;z-index:2}
+.bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  position:relative;z-index:2;gap:10px}
+.esh{width:80px;height:14px;background:radial-gradient(ellipse,rgba(0,0,0,.5),transparent);border-radius:50%;margin-top:-6px}
+.esp{font-size:72px;animation:ef2 2.5s ease-in-out infinite;filter:drop-shadow(0 0 16px rgba(232,74,74,.4))}
+@keyframes ef2{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.en{font-size:16px;font-weight:900;color:var(--red);text-shadow:0 0 10px rgba(232,74,74,.5)}
+.elv{font-size:10px;color:var(--m2)}
+.ehw{width:75%;display:flex;flex-direction:column;gap:3px}
+.eht{height:12px;background:#0a1020;border-radius:6px;overflow:hidden;border:1px solid var(--b2)}
+.ehf{height:100%;background:linear-gradient(90deg,#6e0808,#e84a4a);border-radius:6px;transition:width .5s}
+.ehtx{font-size:10px;color:var(--m2);text-align:center}
+.sbdg{display:flex;gap:4px;flex-wrap:wrap;justify-content:center}
+.sb{font-size:9px;padding:2px 7px;border-radius:8px;font-weight:700}
+.sb-p{background:rgba(155,89,182,.3);color:#c39bd3;border:1px solid #9b59b6}
+.sb-s{background:rgba(74,143,232,.3);color:#85b8f5;border:1px solid #4a8fe8}
+.sb-b{background:rgba(255,140,66,.3);color:#ffb885;border:1px solid #ff8c42}
+.blw{background:rgba(14,20,32,.9);border-top:1px solid var(--b1);padding:8px 14px;
+  min-height:46px;position:relative;z-index:2;backdrop-filter:blur(4px)}
+.blog{font-size:12px;line-height:1.6}
+.hl{color:var(--gold);font-weight:700}
+.bact{background:linear-gradient(0,rgba(14,20,32,.98),rgba(14,20,32,.88));border-top:1px solid var(--b1);
+  padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;flex-shrink:0;position:relative;z-index:2}
+.bb{padding:13px 8px;border-radius:12px;border:2px solid;font-size:12px;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:5px;transition:all .15s;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.bb:active{transform:scale(.93)}
+.bba{background:rgba(232,74,74,.12);border-color:var(--red);color:var(--red)}
+.bbs{background:rgba(168,85,247,.12);border-color:var(--purple);color:var(--purple)}
+.bbi{background:rgba(39,201,106,.12);border-color:var(--green);color:var(--green)}
+.bbr{background:rgba(90,112,144,.12);border-color:var(--muted);color:var(--muted)}
+
+/* MODALS */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:flex-end;backdrop-filter:blur(2px)}
+.ov.show{display:flex}
+.modal{background:linear-gradient(180deg,var(--p1),var(--p2));border-top:2px solid var(--b2);
+  border-radius:18px 18px 0 0;width:100%;max-height:82vh;display:flex;flex-direction:column;animation:mu .25s ease-out}
+@keyframes mu{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.mhd{padding:14px 16px;display:flex;align-items:center;border-bottom:1px solid var(--b1);flex-shrink:0}
+.mtt{flex:1;font-size:16px;font-weight:800;color:var(--gold)}
+.mx{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0 4px;line-height:1}
+.mbd{flex:1;overflow-y:auto;padding:14px 16px}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
+
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sc{background:var(--p3);border:1px solid var(--b2);border-radius:10px;padding:12px;text-align:center}
+.sv{font-size:19px;font-weight:900;color:var(--gold)}.sl{font-size:10px;color:var(--m2);margin-top:2px}
+.esec{margin-top:14px}.estt{color:var(--m2);font-size:11px;font-weight:700;margin-bottom:8px;letter-spacing:1px}
+.eqc{background:var(--p3);border:1px solid var(--b2);border-radius:10px;padding:10px;
+  display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.eqico{font-size:22px}.eqi{flex:1}.eqn{font-size:12px;font-weight:700;color:var(--cyan)}.eqs{font-size:10px;color:var(--m2)}
+
+.itc{background:var(--p3);border:1px solid var(--b1);border-radius:10px;padding:11px;
+  display:flex;align-items:center;gap:10px;cursor:pointer;transition:border-color .15s;margin-bottom:7px}
+.itc:active{border-color:var(--gold)}
+.itico{font-size:26px}.iti{flex:1}.itn{font-size:13px;font-weight:700}
+.itd{font-size:10px;color:var(--m2);margin-top:2px}.itq{color:var(--gold);font-size:12px;font-weight:800}
+
+.qc{background:var(--p3);border:1px solid var(--b1);border-radius:12px;padding:13px;margin-bottom:10px}
+.qc.aq{border-color:var(--cyan)}.qc.dq{border-color:var(--green);opacity:.7}
+.qt{font-size:13px;font-weight:800;color:var(--cyan);margin-bottom:4px}
+.qd{font-size:11px;color:var(--m2);margin-bottom:6px}
+.qpw{height:6px;background:#0a1020;border-radius:3px;overflow:hidden;margin-bottom:4px}
+.qpf{height:100%;background:linear-gradient(90deg,#006080,var(--cyan));border-radius:3px;transition:width .4s}
+.qpt{font-size:10px;color:var(--m2)}.qr{font-size:10px;color:var(--green);margin-top:6px;font-weight:700}
+
+.skc{background:var(--p3);border:1px solid var(--b1);border-radius:10px;padding:11px;
+  display:flex;align-items:center;gap:10px;cursor:pointer;transition:border-color .15s;margin-bottom:7px}
+.skc:active{border-color:var(--purple)}
+.skico{font-size:28px}.ski{flex:1}.skn{font-size:13px;font-weight:700;color:var(--purple)}
+.skd{font-size:10px;color:var(--m2);margin-top:2px}
+.skmp{color:var(--blue);font-size:11px;font-weight:800}.skpw{color:var(--orange);font-size:10px}
+
+.bskc{background:var(--p3);border:2px solid var(--b2);border-radius:10px;padding:12px;
+  display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .15s;margin-bottom:8px}
+.bskc:active{border-color:var(--purple);transform:scale(.97)}
+.bskc.dis{opacity:.4;pointer-events:none}
+
+/* TOAST / DMG */
+.toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%);background:var(--p2);
+  border:1px solid var(--g2);color:var(--g3);padding:8px 22px;border-radius:22px;font-size:12px;
+  z-index:500;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.6)}
+.toast.show{opacity:1}
+.dp2{position:fixed;font-weight:900;pointer-events:none;z-index:600;
+  animation:dp2a 1.1s ease-out forwards;text-shadow:0 2px 8px rgba(0,0,0,.8)}
+@keyframes dp2a{0%{opacity:1;transform:translateY(0) scale(.8)}20%{transform:translateY(-10px) scale(1.2)}100%{opacity:0;transform:translateY(-70px) scale(.9)}}
+.lvup{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:linear-gradient(135deg,#1a1a00,#3a3000);border:3px solid var(--gold);border-radius:16px;
+  padding:24px 40px;text-align:center;z-index:700;box-shadow:0 0 40px rgba(245,200,66,.5);
+  animation:lua .5s ease-out}
+@keyframes lua{from{transform:translate(-50%,-50%) scale(.5);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
+.lut{font-size:11px;color:var(--g2);letter-spacing:3px}
+.lulv{font-size:48px;font-weight:900;color:var(--gold);line-height:1}
+.lun{font-size:14px;color:var(--g3);margin-top:4px}
+</style>
+</head>
+<body>
+
+<!-- TITLE -->
+<div id="ts" class="screen active">
+  <div class="t-stars" id="tstar"></div>
+  <div class="t-emb">⚔️</div>
+  <div><div class="t-h1">クロニクル・オブ・エターニア</div><div class="t-sub">CHRONICLE OF ETARNIA</div></div>
+  <div class="t-div"></div>
+  <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
+  <div class="t-sub">タッチして旅立て</div>
+</div>
+
+<!-- GAME -->
+<div id="gs" class="screen">
+  <div class="topbar">
+    <div class="portrait">🧙</div>
+    <div class="ci"><div class="cn">アルシア</div><div class="cc">Lv.<span id="clv">1</span> 魔法剣士</div></div>
+    <div class="bw">
+      <div class="br"><span class="bl h">HP</span><div class="bg"><div class="bf bfh" id="hb" style="width:100%"></div></div><span class="bn" id="hn">100/100</span></div>
+      <div class="br"><span class="bl m">MP</span><div class="bg"><div class="bf bfm" id="mb" style="width:100%"></div></div><span class="bn" id="mn">50/50</span></div>
+      <div class="br"><span class="bl x">EX</span><div class="bg"><div class="bf bfx" id="xb" style="width:0%"></div></div><span class="bn" id="xn">0/100</span></div>
+    </div>
+    <div class="gb">💰<span id="gv">500</span></div>
+  </div>
+  <div class="mw" id="mw">
+    <canvas id="mc"></canvas>
+    <div class="minimap"><canvas id="mc2" width="80" height="80"></canvas></div>
+    <div class="ll" id="ll">🏰 はじまりの村 エルスタ</div>
+    <div class="wi"><div class="wb" id="wt">🌙 夜</div><div class="wb" id="ww">☀️ 晴れ</div></div>
+    <div class="dpad">
+      <div class="dp e"></div><div class="dp" data-dir="up">▲</div><div class="dp e"></div>
+      <div class="dp" data-dir="left">◀</div><div class="dp e"></div><div class="dp" data-dir="right">▶</div>
+      <div class="dp e"></div><div class="dp" data-dir="down">▼</div><div class="dp e"></div>
+    </div>
+    <div class="apad">
+      <div class="ar"><button class="ab ab1" onclick="triggerBattle(false)">⚔️ バトル</button><button class="ab ab2" onclick="openM('skm')">✨ スキル</button></div>
+      <div class="ar"><button class="ab ab3" onclick="openM('itm')">🎒 アイテム</button><button class="ab ab4" onclick="openM('qum')">📜 クエスト</button></div>
+    </div>
+    <div class="ep" id="ep" onclick="enterBuilding()">🚪 入る [タップ]</div>
+    <div class="nbox" id="nb" onclick="this.classList.remove('show')">
+      <div class="na" id="nav"></div><div class="nh" id="nnm"></div><div class="nb2" id="ntx" style="color:var(--text);font-size:12px;line-height:1.7"></div>
+      <div class="nc">▼ タップで閉じる</div>
+    </div>
+  </div>
+  <div class="bnav">
+    <button class="nvb on"><span class="ni">🗺️</span>マップ</button>
+    <button class="nvb" onclick="openM('stm')"><span class="ni">👤</span>ステータス</button>
+    <button class="nvb" onclick="openM('itm')"><span class="ni">🎒</span>アイテム</button>
+    <button class="nvb" onclick="openM('qum')"><span class="ni">📜</span>クエスト</button>
+    <button class="nvb" onclick="saveGame()"><span class="ni">💾</span>セーブ</button>
+  </div>
+</div>
+
+<!-- INDOOR -->
+<div id="is" class="screen">
+  <div class="ihd">
+    <div class="iico" id="iico">🏠</div>
+    <div><div class="itit" id="itit">場所</div><div class="isub" id="isub">説明</div></div>
+    <button class="bkb" onclick="exitBuilding()">← 戻る</button>
+  </div>
+  <div class="ib">
+    <div class="ic-wrap"><canvas id="ic" width="300" height="150"></canvas></div>
+    <div id="icont"></div>
+  </div>
+</div>
+
+<!-- BATTLE -->
+<div id="bs" class="screen">
+  <div class="bbg" id="bbg"></div>
+  <div class="btp topbar">
+    <div class="portrait">🧙</div>
+    <div class="ci"><div class="cn">アルシア</div><div class="cc">Lv.<span id="blv">1</span></div></div>
+    <div class="bw">
+      <div class="br"><span class="bl h">HP</span><div class="bg"><div class="bf bfh" id="bhb" style="width:100%"></div></div><span class="bn" id="bhn">100/100</span></div>
+      <div class="br"><span class="bl m">MP</span><div class="bg"><div class="bf bfm" id="bmb" style="width:100%"></div></div><span class="bn" id="bmn">50/50</span></div>
+    </div>
+  </div>
+  <div class="bar">
+    <div class="esp" id="esp">👹</div><div class="esh"></div>
+    <div class="en" id="enm">スライム</div><div class="elv" id="elv">Lv.1</div>
+    <div class="ehw"><div class="eht"><div class="ehf" id="ehf" style="width:100%"></div></div><div class="ehtx" id="ehtx">HP:50/50</div></div>
+    <div class="sbdg" id="sbdg"></div>
+  </div>
+  <img id="hero-battle-img" alt="アルシア" style="position:absolute;left:6%;bottom:120px;height:240px;z-index:3;filter:drop-shadow(0 6px 16px rgba(0,0,0,.6));pointer-events:none;transition:transform .12s">
+  <div class="blw"><div class="blog" id="blog">戦闘開始！</div></div>
+  <div class="bact">
+    <button class="bb bba" onclick="doAtk()">⚔️ こうげき</button>
+    <button class="bb bbs" onclick="openSkillSelect()">✨ スキル</button>
+    <button class="bb bbi" onclick="doBattleItem()">🧪 アイテム</button>
+    <button class="bb bbr" onclick="tryRun()">💨 にげる</button>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="ov" id="stm" onclick="closeM('stm')"><div class="modal" onclick="event.stopPropagation()">
+  <div class="mhd"><span class="mtt">👤 ステータス</span><button class="mx" onclick="closeM('stm')">✕</button></div>
+  <div class="mbd">
+    <div style="text-align:center;margin-bottom:14px">
+      <div style="font-size:48px;filter:drop-shadow(0 0 10px rgba(168,85,247,.4))">🧙</div>
+      <div style="font-size:15px;font-weight:800;color:var(--gold)">アルシア</div>
+      <div style="color:var(--m2);font-size:11px">Lv.<span id="slv">1</span> 魔法剣士</div>
+    </div>
+    <div class="sg" id="sgrid"></div>
+    <div class="esec"><div class="estt">装備</div><div id="eql"></div></div>
+  </div>
+</div></div>
+
+<div class="ov" id="itm" onclick="closeM('itm')"><div class="modal" onclick="event.stopPropagation()">
+  <div class="mhd"><span class="mtt">🎒 アイテム</span><button class="mx" onclick="closeM('itm')">✕</button></div>
+  <div class="mbd" id="itbd"></div>
+</div></div>
+
+<div class="ov" id="qum" onclick="closeM('qum')"><div class="modal" onclick="event.stopPropagation()">
+  <div class="mhd"><span class="mtt">📜 クエスト</span><button class="mx" onclick="closeM('qum')">✕</button></div>
+  <div class="mbd" id="qubd"></div>
+</div></div>
+
+<div class="ov" id="skm" onclick="closeM('skm')"><div class="modal" onclick="event.stopPropagation()">
+  <div class="mhd"><span class="mtt">✨ スキル</span><button class="mx" onclick="closeM('skm')">✕</button></div>
+  <div class="mbd" id="skbd"></div>
+</div></div>
+
+<div class="ov" id="bskm" onclick="closeM('bskm')"><div class="modal" onclick="event.stopPropagation()">
+  <div class="mhd"><span class="mtt">✨ スキル選択</span><button class="mx" onclick="closeM('bskm')">✕</button></div>
+  <div class="mbd" id="bskbd"></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const HERO_MAP_IMG=new Image();
+HERO_MAP_IMG.src="assets/hero_map.png";
+const HERO_BATTLE_SRC="assets/hero_battle.png";
+let heroMapReady=false;
+HERO_MAP_IMG.onload=()=>{heroMapReady=true;};
+const VILLAGE_IMG=new Image();
+VILLAGE_IMG.src="assets/village.jpg";
+let villageReady=false;
+VILLAGE_IMG.onload=()=>{villageReady=true;};
+// エリア背景画像
+const AREA_FOREST=new Image(); AREA_FOREST.src="assets/area_forest.jpg";
+const AREA_SNOW=new Image(); AREA_SNOW.src="assets/area_snow.jpg";
+const AREA_COAST=new Image(); AREA_COAST.src="assets/area_coast.jpg";
+const AREA_CAVE=new Image(); AREA_CAVE.src="assets/area_cave.jpg";
+const AREA_TEMPLE=new Image(); AREA_TEMPLE.src="assets/area_temple.jpg";
+const AREA_IMGS={forest:AREA_FOREST,snow:AREA_SNOW,coast:AREA_COAST,cave:AREA_CAVE,temple:AREA_TEMPLE};
+// NPC画像
+const NPC_GASTON=new Image(); NPC_GASTON.src="assets/npc_gaston.png";
+const NPC_ELMIA=new Image(); NPC_ELMIA.src="assets/npc_elmia.png";
+const NPC_RAGAN=new Image(); NPC_RAGAN.src="assets/npc_ragan.png";
+const NPC_SAGE=new Image(); NPC_SAGE.src="assets/npc_sage.png";
+const NPC_DRAKE=new Image(); NPC_DRAKE.src="assets/npc_drake.png";
+const NPC_IMGS={gaston:NPC_GASTON,elmia:NPC_ELMIA,ragan:NPC_RAGAN,sage:NPC_SAGE,drake:NPC_DRAKE};
+// 敵画像
+const ENEMY_E_BAT=new Image(); ENEMY_E_BAT.src="assets/enemy_bat.png";
+const ENEMY_E_GOBLIN=new Image(); ENEMY_E_GOBLIN.src="assets/enemy_goblin.png";
+const ENEMY_E_SKELETON=new Image(); ENEMY_E_SKELETON.src="assets/enemy_skeleton.png";
+const ENEMY_E_ORC=new Image(); ENEMY_E_ORC.src="assets/enemy_orc.png";
+const ENEMY_E_KNIGHT=new Image(); ENEMY_E_KNIGHT.src="assets/enemy_knight.png";
+const ENEMY_E_DRAGON=new Image(); ENEMY_E_DRAGON.src="assets/enemy_dragon.png";
+const ENEMY_E_LORD=new Image(); ENEMY_E_LORD.src="assets/enemy_lord.png";
+const ENEMY_S_BLUE=new Image(); ENEMY_S_BLUE.src="assets/slime_blue.png";
+const ENEMY_S_GREEN=new Image(); ENEMY_S_GREEN.src="assets/slime_green.png";
+const ENEMY_S_YELLOW=new Image(); ENEMY_S_YELLOW.src="assets/slime_yellow.png";
+const ENEMY_S_PURPLE=new Image(); ENEMY_S_PURPLE.src="assets/slime_purple.png";
+const ENEMY_S_PINK=new Image(); ENEMY_S_PINK.src="assets/slime_pink.png";
+const ENEMY_IMGS={e_bat:ENEMY_E_BAT,e_goblin:ENEMY_E_GOBLIN,e_skeleton:ENEMY_E_SKELETON,e_orc:ENEMY_E_ORC,e_knight:ENEMY_E_KNIGHT,e_dragon:ENEMY_E_DRAGON,e_lord:ENEMY_E_LORD,s_blue:ENEMY_S_BLUE,s_green:ENEMY_S_GREEN,s_yellow:ENEMY_S_YELLOW,s_purple:ENEMY_S_PURPLE,s_pink:ENEMY_S_PINK};
+
+const G={
+  p:{name:'アルシア',lv:1,job:'魔法剣士',hp:100,mhp:100,mp:50,mmp:50,xp:0,xpn:100,gold:500,atk:18,def:12,mag:22,spd:15,x:10,y:10,px:10,py:10,tx:10,ty:10,face:'right'},
+  enemy:null,inBattle:false,myTurn:true,inIndoor:false,curB:null,buffs:{},time:0,
+  items:[
+    {id:'pot',name:'ポーション',icon:'🧪',desc:'HPを50回復',qty:3,t:'heal',v:50},
+    {id:'elix',name:'エリクサー',icon:'💎',desc:'HPを完全回復',qty:1,t:'fullhp',v:0},
+    {id:'mpp',name:'マナポーション',icon:'💧',desc:'MPを30回復',qty:2,t:'mp',v:30},
+    {id:'anti',name:'解毒薬',icon:'🌿',desc:'毒を治す',qty:2,t:'cure',v:0},
+    {id:'bomb',name:'ファイアボム',icon:'💣',desc:'敵に60ダメージ',qty:1,t:'dmg',v:60},
+  ],
+  equip:{weapon:{name:'鉄の剣',icon:'🗡️',stat:'ATK+8'},armor:{name:'革の鎧',icon:'🛡️',stat:'DEF+5'},acc:{name:'魔力の指輪',icon:'💍',stat:'MAG+6'}},
+  skills:[
+    {id:'slash',name:'魔法斬り',icon:'🗡️',desc:'魔力乗せ斬撃',mp:8,pow:40,t:'atk'},
+    {id:'fire',name:'ファイアボール',icon:'🔥',desc:'炎の球',mp:12,pow:55,t:'atk'},
+    {id:'thun',name:'サンダーボルト',icon:'⚡',desc:'雷の貫通',mp:16,pow:70,t:'atk'},
+    {id:'bliz',name:'ブリザード',icon:'❄️',desc:'氷の嵐・遅延効果',mp:18,pow:60,t:'atk',eff:'slow'},
+    {id:'heal',name:'ヒール',icon:'💚',desc:'HPを50回復',mp:10,pow:50,t:'self'},
+    {id:'shld',name:'マジックシールド',icon:'🛡️',desc:'防御1ターン強化',mp:14,pow:0,t:'buff'},
+    {id:'drain',name:'ドレイン',icon:'🌑',desc:'敵HPを吸収',mp:20,pow:45,t:'drain'},
+  ],
+  quests:[
+    {id:'q1',title:'スライム討伐',desc:'村周辺のスライムを5体倒せ',goal:5,prog:0,done:false,rxp:300,rgold:400,claimed:false},
+    {id:'q2',title:'ゴブリンの脅威',desc:'ゴブリンを3体倒せ',goal:3,prog:0,done:false,rxp:500,rgold:600,claimed:false},
+    {id:'q3',title:'古の洞窟の謎',desc:'洞窟のボスを討伐せよ',goal:1,prog:0,done:false,rxp:1000,rgold:1500,claimed:false},
+    {id:'q4',title:'冒険者の第一歩',desc:'5つの場所を訪れよ',goal:5,prog:0,done:false,rxp:400,rgold:500,claimed:false},
+    {id:'q5',title:'森の番人',desc:'スケルトンを4体倒せ',goal:4,prog:0,done:false,rxp:700,rgold:800,claimed:false},
+    {id:'q6',title:'オークの砦',desc:'オークを3体倒せ',goal:3,prog:0,done:false,rxp:1100,rgold:1200,claimed:false},
+    {id:'q7',title:'暗黒騎士の討伐',desc:'暗黒騎士を2体倒せ',goal:2,prog:0,done:false,rxp:1600,rgold:1800,claimed:false},
+    {id:'q8',title:'竜殺しの伝説',desc:'ドラゴンを1体倒せ',goal:1,prog:0,done:false,rxp:2500,rgold:3000,claimed:false},
+  ],
+  visited:new Set(),
+  lastNpc:null,
+};
+
+const MS=40,TS=36;
+const MAP=[];
+
+const BUILDINGS=[
+  // 村内（絵の建物に重ねる。icon空で絵文字を出さない）
+  {x:15,y:9,icon:'',name:'宿屋 月明かり亭',sub:'ゆっくり休んでいけ',type:'inn',r:1.6},
+  {x:15,y:13,icon:'',name:'武器屋 ブレードハウス',sub:'最強の武器を揃えた',type:'weapon',r:1.6},
+  {x:8,y:14,icon:'',name:'防具屋 アーマーズ',sub:'身を守れ',type:'armor',r:1.6},
+  {x:11,y:5,icon:'',name:'魔法ギルド',sub:'スキルを磨け',type:'guild',r:1.8},
+  {x:7,y:11,icon:'',name:'道具屋 マルクの露店',sub:'冒険の必需品',type:'tavern',r:1.6},
+  // 村外（各エリア背景の上）
+  {x:26,y:8,icon:'🌲',name:'森の隠れ家',sub:'旅人の休憩所',type:'inn',r:1.4},
+  {x:30,y:30,icon:'⛩️',name:'古の神殿',sub:'謎が眠る場所',type:'temple',r:1.6},
+  {x:23,y:24,icon:'⚓',name:'港町の酒場',sub:'情報が集まる場所',type:'tavern',r:1.6},
+  {x:11,y:28,icon:'🕳️',name:'暗黒の洞窟',sub:'強敵が待ち受ける',type:'dungeon',r:1.6},
+];
+
+const NPCS=[
+  // 村内（画像で立たせる）
+  {x:11,y:7,img:'gaston',name:'村長 ガストン',text:'この村へようこそ！東の森にはモンスターが増えておる。宿屋で休んでから旅立つといい。'},
+  {x:10,y:11,img:'elmia',name:'魔法使い エルミア',text:'あなたの中に強大な魔力を感じるわ。魔法ギルドへ来てね！スキルが磨かれるわよ。'},
+  {x:7,y:13,img:'ragan',name:'傭兵 ラガン',text:'洞窟の奥には「洞窟の主」がいる。俺でも勝てなかった…Lv10以上で挑め！'},
+  // 村外（画像で立たせる）
+  {x:24,y:10,img:'sage',name:'森の賢者',text:'この森には古の精霊が宿る。静かに歩けばその声が聞こえるだろう…'},
+  {x:24,y:26,img:'drake',name:'船乗り ドレイク',text:'港の向こうには未知の大陸があるらしい。強くなって探しに行きな！'},
+];
+
+const ENEMIES=[
+  // index 0-7（既存。imgを追加）
+  {name:'スライム',img:'s_blue',icon:'🟢',lv:1,mhp:45,atk:8,def:4,xp:35,gold:20},
+  {name:'コウモリ',img:'e_bat',icon:'🦇',lv:2,mhp:60,atk:13,def:5,xp:50,gold:30},
+  {name:'ゴブリン',img:'e_goblin',icon:'👺',lv:3,mhp:90,atk:20,def:8,xp:80,gold:60},
+  {name:'スケルトン',img:'e_skeleton',icon:'💀',lv:5,mhp:120,atk:26,def:12,xp:110,gold:90},
+  {name:'オーク',img:'e_orc',icon:'👹',lv:7,mhp:160,atk:35,def:16,xp:160,gold:130},
+  {name:'ドラゴン',img:'e_dragon',icon:'🐉',lv:10,mhp:250,atk:50,def:22,xp:280,gold:250},
+  {name:'暗黒騎士',img:'e_knight',icon:'⚫',lv:8,mhp:200,atk:44,def:20,xp:220,gold:200},
+  {name:'洞窟の主',img:'e_lord',icon:'👑',lv:12,mhp:400,atk:60,def:28,xp:600,gold:600,boss:true},
+  // index 8-11（スライム色違い・新規）
+  {name:'みどりスライム',img:'s_green',icon:'🟢',lv:2,mhp:55,atk:10,def:5,xp:45,gold:28},
+  {name:'きいろスライム',img:'s_yellow',icon:'🟡',lv:3,mhp:65,atk:14,def:6,xp:60,gold:40},
+  {name:'どくスライム',img:'s_purple',icon:'🟣',lv:4,mhp:80,atk:18,def:8,xp:80,gold:55},
+  {name:'ピンクスライム',img:'s_pink',icon:'🩷',lv:3,mhp:70,atk:12,def:7,xp:65,gold:50},
+];
+
+const ZONES=[
+  {name:'🏰 はじまりの村 エルスタ',cx:11,cy:11,r:8},
+  {name:'🌲 エルスタの森',cx:26,cy:11,r:8},
+  {name:'🏔️ 銀嶺山脈',cx:11,cy:26,r:8},
+  {name:'🌊 碧海の入り江',cx:26,cy:26,r:8},
+];
+// 各背景画像を貼るタイル範囲（16×16ずつ・隙間なく隣接）
+const VILLAGE_RECT={x:3,y:3,w:16,h:16};   // 村：3〜18
+const AREA_RECTS=[
+  {img:'forest', x:19,y:3,  w:16,h:16, zone:'forest'},  // 東：森（19〜34）
+  {img:'snow',   x:3, y:19, w:16,h:16, zone:'snow'},    // 南：雪山（y19〜34）
+  {img:'coast',  x:19,y:19, w:16,h:16, zone:'coast'},   // 南東：海岸
+];
+// 洞窟・神殿は雪山/海岸の中に入口から入る扱い（背景はcave/temple）
+
+const TC={
+  0:{bg:'#0a1e3a',fg:'#0d2d55',em:'🌊',bl:true},
+  1:{bg:'#1a3a1a',fg:'#245224',em:'🌿',bl:false},
+  2:{bg:'#142812',fg:'#1e3c1a',em:'🌲',bl:false},
+  3:{bg:'#2a2218',fg:'#3a3024',em:'⛰️',bl:false},
+  4:{bg:'#2a1e0e',fg:'#3a2c16',em:'🟤',bl:false},
+  5:{bg:'#1a0e20',fg:'#28143a',em:'🕳️',bl:false},
+  6:{bg:'#0e2040',fg:'#142e58',em:'🏖️',bl:false},
+  7:{bg:'#1e1020',fg:'#2e1830',em:'⛩️',bl:false},
+};
+
+// Generate map
+(function(){
+  for(let y=0;y<MS;y++){
+    MAP[y]=[];
+    for(let x=0;x<MS;x++){
+      const dv=Math.hypot(x-11,y-11),df=Math.hypot(x-25,y-12),
+        dm=Math.hypot(x-10,y-28),dc=Math.hypot(x-5,y-33),
+        dd=Math.hypot(x-35,y-35),dt=Math.hypot(x-32,y-25);
+      let t;
+      if(dv<5) t=4;
+      else if(df<7) t=2;
+      else if(dm<7) t=3;
+      else if(dc<6) t=6;
+      else if(dd<5) t=5;
+      else if(dt<4) t=7;
+      else if(x<2||y<2||x>MS-3||y>MS-3) t=0;
+      else{const n=(Math.sin(x*.4+y*.7)*.5+Math.cos(x*.7-y*.3)*.5+1)/2;t=n<.18?0:n<.55?1:n<.72?2:3;}
+      MAP[y][x]=t;
+    }
+  }
+})();
+
+let mc,mctx,mc2,mc2ctx;
+function initCanvas(){
+  mc=document.getElementById('mc');
+  const w=document.getElementById('mw');
+  mc.width=w.clientWidth; mc.height=w.clientHeight;
+  mctx=mc.getContext('2d');
+  mc2=document.getElementById('mc2');
+  mc2ctx=mc2.getContext('2d');
+}
+
+function renderMap(){
+  if(!mctx) return;
+  const W=mc.width,H=mc.height,p=G.p;
+  // ピクセル座標（なめらか移動用）
+  const wpx=p.px*TS, wpy=p.py*TS;
+  const camX=Math.max(0,Math.min(MS*TS-W,wpx-W/2+TS/2));
+  const camY=Math.max(0,Math.min(MS*TS-H,wpy-H/2+TS/2));
+  mctx.clearRect(0,0,W,H);
+  const sx=Math.floor(camX/TS),sy=Math.floor(camY/TS);
+  const ex=Math.min(MS,sx+Math.ceil(W/TS)+2),ey=Math.min(MS,sy+Math.ceil(H/TS)+2);
+
+  // Tiles（村・各エリア範囲内はスキップ）
+  const VR=VILLAGE_RECT;
+  function inRect(tx,ty,R){return tx>=R.x&&tx<R.x+R.w&&ty>=R.y&&ty<R.y+R.h;}
+  function inAnyArea(tx,ty){
+    if(villageReady&&inRect(tx,ty,VR)) return true;
+    for(const A of AREA_RECTS){ if(AREA_IMGS[A.img]?.complete&&inRect(tx,ty,A)) return true; }
+    return false;
+  }
+  for(let ty=sy;ty<ey;ty++){
+    for(let tx=sx;tx<ex;tx++){
+      if(inAnyArea(tx,ty)) continue; // 背景画像で覆う範囲はタイルを描かない
+      const t=MAP[ty]?.[tx]??0,cfg=TC[t]||TC[1];
+      const px=tx*TS-camX,py=ty*TS-camY;
+      mctx.fillStyle=cfg.bg; mctx.fillRect(px,py,TS,TS);
+      mctx.fillStyle=cfg.fg; mctx.fillRect(px+1,py+1,TS-2,TS-2);
+      mctx.strokeStyle='rgba(0,0,0,.2)'; mctx.strokeRect(px+.5,py+.5,TS-1,TS-1);
+      mctx.font=`${TS*.5}px serif`; mctx.textAlign='center'; mctx.textBaseline='middle';
+      mctx.globalAlpha=.7; mctx.fillStyle='#fff';
+      mctx.fillText(cfg.em,px+TS/2,py+TS/2+1); mctx.globalAlpha=1;
+    }
+  }
+
+  // 村背景画像
+  if(villageReady){
+    const vx=VR.x*TS-camX, vy=VR.y*TS-camY;
+    mctx.drawImage(VILLAGE_IMG, vx, vy, VR.w*TS, VR.h*TS);
+  }
+  // 各エリア背景画像
+  AREA_RECTS.forEach(A=>{
+    const im=AREA_IMGS[A.img];
+    if(im&&im.complete&&im.naturalWidth){
+      const ax=A.x*TS-camX, ay=A.y*TS-camY;
+      mctx.drawImage(im, ax, ay, A.w*TS, A.h*TS);
+    }
+  });
+
+  // Buildings
+  BUILDINGS.forEach(b=>{
+    const px=b.x*TS-camX,py=b.y*TS-camY;
+    if(px>-TS&&px<W+TS&&py>-TS&&py<H+TS){
+      if(b.icon){
+        // 村外：絵文字＋発光
+        mctx.save();
+        const g=mctx.createRadialGradient(px+TS/2,py+TS/2,4,px+TS/2,py+TS/2,TS*.9);
+        g.addColorStop(0,'rgba(245,200,66,.3)'); g.addColorStop(1,'transparent');
+        mctx.fillStyle=g; mctx.fillRect(px-4,py-4,TS+8,TS+8); mctx.restore();
+        mctx.font=`${TS*.68}px serif`; mctx.textAlign='center'; mctx.textBaseline='middle';
+        mctx.fillText(b.icon,px+TS/2,py+TS/2);
+      } else {
+        // 村内：絵に重なるので控えめな入口マーカー（光る点）だけ
+        mctx.save();
+        const pulse=0.4+Math.abs(Math.sin(Date.now()/500))*0.3;
+        mctx.fillStyle=`rgba(255,230,120,${pulse})`;
+        mctx.beginPath(); mctx.arc(px+TS/2,py+TS/2,4,0,Math.PI*2); mctx.fill();
+        mctx.strokeStyle='rgba(0,0,0,.4)'; mctx.lineWidth=1; mctx.stroke();
+        mctx.restore();
+      }
+    }
+  });
+
+  // NPCs（画像スプライト）
+  NPCS.forEach(n=>{
+    const px=n.x*TS-camX,py=n.y*TS-camY;
+    if(px>-TS*2&&px<W+TS&&py>-TS*2&&py<H+TS){
+      const im=n.img&&NPC_IMGS[n.img];
+      if(im&&im.complete&&im.naturalWidth){
+        const sh=TS*1.5, sw=sh*(im.naturalWidth/im.naturalHeight);
+        // 影
+        mctx.save();
+        mctx.fillStyle='rgba(0,0,0,.4)';
+        mctx.beginPath(); mctx.ellipse(px+TS/2,py+TS-2,TS*.3,5,0,0,Math.PI*2); mctx.fill();
+        mctx.restore();
+        // 浮遊感の軽い揺れ
+        const bob=Math.sin(Date.now()/600+n.x)*1.5;
+        mctx.drawImage(im, px+TS/2-sw/2, py+TS-sh-bob, sw, sh);
+      } else if(n.icon){
+        mctx.font=`${TS*.58}px serif`; mctx.textAlign='center'; mctx.textBaseline='middle';
+        mctx.fillText(n.icon,px+TS/2,py+TS/2+2);
+      }
+    }
+  });
+
+  // Night overlay
+  const da=getDayAlpha();
+  if(da>0){
+    mctx.fillStyle=`rgba(0,5,20,${da*.55})`; mctx.fillRect(0,0,W,H);
+    if(da>.5){
+      mctx.fillStyle=`rgba(255,255,255,${(da-.5)*.7})`;
+      for(let i=0;i<28;i++){mctx.beginPath();mctx.arc((i*137+23)%W,(i*97+41)%H,.8,0,Math.PI*2);mctx.fill();}
+    }
+  }
+
+  // Player（アニメスプライト + 歩行アニメ）
+  const ppx=wpx-camX, ppy=wpy-camY;
+  const moving=Math.abs(p.px-p.tx)>0.01||Math.abs(p.py-p.ty)>0.01;
+  // 歩行バウンス
+  const bob=moving?Math.abs(Math.sin(Date.now()/90))*4:Math.sin(Date.now()/500)*1.5;
+  // 影（濃いめ）
+  mctx.save();
+  mctx.fillStyle='rgba(0,0,0,.5)';
+  mctx.beginPath(); mctx.ellipse(ppx+TS/2,ppy+TS-2,TS*.34,6,0,0,Math.PI*2); mctx.fill();
+  mctx.restore();
+  // スプライト（大きめ）
+  if(heroMapReady){
+    const sh=TS*1.5, sw=sh*(HERO_MAP_IMG.width/HERO_MAP_IMG.height);
+    mctx.save();
+    // 左向きのとき反転
+    if(p.face==='left'){
+      mctx.translate(ppx+TS/2, 0); mctx.scale(-1,1);
+      mctx.drawImage(HERO_MAP_IMG, -sw/2, ppy+TS-sh-bob, sw, sh);
+    } else {
+      mctx.drawImage(HERO_MAP_IMG, ppx+TS/2-sw/2, ppy+TS-sh-bob, sw, sh);
+    }
+    mctx.restore();
+  } else {
+    mctx.font=`${TS*.72}px serif`; mctx.textAlign='center'; mctx.textBaseline='middle';
+    mctx.fillText('🧙',ppx+TS/2,ppy+TS/2);
+  }
+
+  renderMini(camX,camY,W,H);
+  updateLL();
+  checkNearby();
+}
+
+function getDayAlpha(){
+  const t=G.time%240;
+  if(t<60) return 0;
+  if(t<80) return (t-60)/20;
+  if(t<160) return 1;
+  if(t<180) return 1-(t-160)/20;
+  return 0;
+}
+
+function renderMini(){
+  const sc=80/MS,ctx=mc2ctx;
+  ctx.clearRect(0,0,80,80);
+  const cols={0:'#0a2a50',1:'#1a4020',2:'#122010',3:'#403020',4:'#402010',5:'#200830',6:'#0a2848',7:'#281040'};
+  for(let y=0;y<MS;y++) for(let x=0;x<MS;x++){ctx.fillStyle=cols[MAP[y][x]]||'#111';ctx.fillRect(x*sc,y*sc,sc,sc);}
+  ctx.fillStyle='#f5c842';
+  BUILDINGS.forEach(b=>ctx.fillRect(b.x*sc-1,b.y*sc-1,3,3));
+  ctx.fillStyle='#4a8fe8';
+  ctx.beginPath(); ctx.arc(G.p.x*sc,G.p.y*sc,2.5,0,Math.PI*2); ctx.fill();
+}
+
+function updateLL(){
+  const p=G.p;
+  let name='エルスタ平原';
+  ZONES.forEach(z=>{if(Math.hypot(p.x-z.cx,p.y-z.cy)<=z.r) name=z.name;});
+  const el=document.getElementById('ll');
+  if(el.textContent!==name){el.textContent=name;G.visited.add(name);
+    const q4=G.quests.find(q=>q.id==='q4');
+    if(q4&&!q4.claimed){q4.prog=Math.min(q4.goal,G.visited.size);checkQuestDone(q4);}
+  }
+}
+
+function checkNearby(){
+  const p=G.p;
+  const nb=BUILDINGS.find(b=>Math.hypot(p.x-b.x,p.y-b.y)<=b.r);
+  const ep=document.getElementById('ep');
+  if(nb){
+    ep.style.display='block';ep.dataset.bid=BUILDINGS.indexOf(nb);
+    const ti={inn:'🛏️',weapon:'⚔️',armor:'🛡️',guild:'✨',tavern:'🍺',temple:'⛩️',dungeon:'💀'}[nb.type]||'🚪';
+    ep.innerHTML=`${ti} ${nb.name} に入る`;
+  }
+  else ep.style.display='none';
+  const nn=NPCS.find(n=>Math.hypot(p.x-n.x,p.y-n.y)<=1.2);
+  if(nn){
+    // 同じNPCの範囲内で一度表示したら、離れるまで再表示しない
+    if(G.lastNpc!==nn.name){
+      G.lastNpc=nn.name;
+      const av=document.getElementById('nav');
+      const im=nn.img&&NPC_IMGS[nn.img];
+      if(im){
+        av.innerHTML=`<img src="${im.src}" style="height:42px;width:auto;display:block">`;
+      } else {
+        av.textContent=nn.icon||'👤';
+      }
+      document.getElementById('nnm').textContent=nn.name;
+      document.getElementById('ntx').textContent=nn.text;
+      document.getElementById('nb').classList.add('show');
+    }
+  } else {
+    // NPCの範囲外に出たらリセット（次に近づいたらまた話せる）
+    G.lastNpc=null;
+  }
+}
+
+function tryStep(dir){
+  // 移動中は次の入力を受けない（1歩ずつ確実に）
+  const p=G.p;
+  if(Math.abs(p.px-p.tx)>0.02||Math.abs(p.py-p.ty)>0.02) return false;
+  let nx=p.x,ny=p.y;
+  if(dir==='up') ny--;
+  if(dir==='down') ny++;
+  if(dir==='left'){nx--;p.face='left';}
+  if(dir==='right'){nx++;p.face='right';}
+  if(nx<0||ny<0||nx>=MS||ny>=MS) return false;
+  // 背景画像エリア内（村・森・雪山・海岸）は自由に歩ける
+  const inArea = (nx>=VILLAGE_RECT.x&&nx<VILLAGE_RECT.x+VILLAGE_RECT.w&&ny>=VILLAGE_RECT.y&&ny<VILLAGE_RECT.y+VILLAGE_RECT.h)
+    || AREA_RECTS.some(A=>nx>=A.x&&nx<A.x+A.w&&ny>=A.y&&ny<A.y+A.h);
+  if(!inArea){
+    const cfg=TC[MAP[ny]?.[nx]??0];
+    if(cfg&&cfg.bl) return false;
+  }
+  // 目標タイルを設定（描画ループが補間する）
+  p.x=nx; p.y=ny; p.tx=nx; p.ty=ny;
+  document.getElementById('nb').classList.remove('show');
+  G.time=(G.time+2)%240;
+  updateTimeDisplay();
+  return true;
+}
+
+function onArrive(){
+  // 1歩到着時の処理（エンカウント判定など）
+  updateLL(); checkNearby();
+  const z=getZone();
+  if(z!=='village'&&Math.random()<.16){ triggerBattle(false); }
+}
+
+// 旧API互換
+function mv(dir){ tryStep(dir); }
+
+// ── なめらか移動の描画ループ ──
+let lastArriveKey='10,10';
+function gameLoop(){
+  const p=G.p;
+  if(!G.inBattle&&!G.inIndoor){
+    // px,py を tx,ty へ補間
+    const speed=0.32;
+    const dx=p.tx-p.px, dy=p.ty-p.py;
+    if(Math.abs(dx)>0.01||Math.abs(dy)>0.01){
+      p.px+=dx*speed; p.py+=dy*speed;
+      if(Math.abs(p.tx-p.px)<0.02&&Math.abs(p.ty-p.py)<0.02){
+        p.px=p.tx; p.py=p.ty;
+        const key=p.tx+','+p.ty;
+        if(key!==lastArriveKey){ lastArriveKey=key; onArrive(); }
+      }
+    } else if(holdDir){
+      // 到着済み & ボタン押しっぱなしなら次の1歩
+      tryStep(holdDir);
+    }
+    if(mctx) renderMap();
+  }
+  requestAnimationFrame(gameLoop);
+}
+
+// ── 入力ハンドラ（押した瞬間1歩 / 長押しで連続）──
+let holdDir=null;
+function startHold(dir){ holdDir=dir; tryStep(dir); }
+function stopHold(){ holdDir=null; }
+function bindDpad(){
+  document.querySelectorAll('.dp[data-dir]').forEach(btn=>{
+    const dir=btn.dataset.dir;
+    btn.addEventListener('touchstart',e=>{e.preventDefault();startHold(dir);},{passive:false});
+    btn.addEventListener('touchend',e=>{e.preventDefault();stopHold();},{passive:false});
+    btn.addEventListener('touchcancel',stopHold);
+    btn.addEventListener('mousedown',e=>{e.preventDefault();startHold(dir);});
+    btn.addEventListener('mouseup',stopHold);
+    btn.addEventListener('mouseleave',stopHold);
+  });
+}
+
+// ── フリック（スワイプ）移動 ──
+function bindSwipe(){
+  const area=document.getElementById('mw');
+  let sx=0, sy=0, active=false;
+  const DEAD=12; // この距離未満は無視（誤タップ防止）
+
+  function calcDir(dx,dy){
+    if(Math.abs(dx)<DEAD && Math.abs(dy)<DEAD) return null;
+    if(Math.abs(dx)>Math.abs(dy)) return dx>0?'right':'left';
+    return dy>0?'down':'up';
+  }
+
+  area.addEventListener('touchstart',e=>{
+    // ボタン類の上は無視
+    if(e.target.closest('.dp,.ab,.ep,.nbox,.minimap')) return;
+    const t=e.touches[0];
+    sx=t.clientX; sy=t.clientY; active=true;
+  },{passive:true});
+
+  area.addEventListener('touchmove',e=>{
+    if(!active) return;
+    const t=e.touches[0];
+    const dir=calcDir(t.clientX-sx, t.clientY-sy);
+    if(dir){
+      holdDir=dir;          // gameLoopが連続移動してくれる
+      // 起点を更新して、指の現在方向に追従
+      sx=t.clientX; sy=t.clientY;
+    }
+  },{passive:true});
+
+  function end(){ active=false; holdDir=null; }
+  area.addEventListener('touchend',end);
+  area.addEventListener('touchcancel',end);
+}
+
+function getZone(){
+  const p=G.p;
+  const VR=VILLAGE_RECT;
+  // 村＝安全地帯
+  if(p.x>=VR.x && p.x<VR.x+VR.w && p.y>=VR.y && p.y<VR.y+VR.h) return 'village';
+  // 森エリア＝森の敵
+  const fr=AREA_RECTS.find(a=>a.img==='forest');
+  if(fr && p.x>=fr.x && p.x<fr.x+fr.w && p.y>=fr.y && p.y<fr.y+fr.h) return 'forest';
+  // 雪山・海岸の奥（洞窟入口付近）＝ダンジョン級
+  if(Math.hypot(p.x-11,p.y-28)<3 || Math.hypot(p.x-30,p.y-30)<3) return 'dungeon';
+  return 'field';
+}
+
+function updateTimeDisplay(){
+  const da=getDayAlpha();
+  document.getElementById('wt').textContent=da<.3?'☀️ 昼':da<.6?'🌅 夕方':da<.9?'🌙 夜':'🌄 明け方';
+  if(Math.random()<.02){const ws=['☀️ 晴れ','🌤 曇り','🌧 雨','⛅ 薄曇'];document.getElementById('ww').textContent=ws[Math.floor(Math.random()*ws.length)];}
+}
+
+// ── INDOOR ──
+function enterBuilding(){
+  const ep=document.getElementById('ep');
+  const b=BUILDINGS[parseInt(ep.dataset.bid)];
+  if(!b) return;
+  G.curB=b; G.inIndoor=true;
+  document.getElementById('iico').textContent=b.icon;
+  document.getElementById('itit').textContent=b.name;
+  document.getElementById('isub').textContent=b.sub;
+  drawIndoor(b); renderContent(b);
+  showScreen('is'); toast(`${b.icon} ${b.name}に入った`);
+}
+function exitBuilding(){G.inIndoor=false;G.curB=null;showScreen('gs');renderMap();}
+
+function drawIndoor(b){
+  const cv=document.getElementById('ic'),ctx=cv.getContext('2d'),W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  const scenes={
+    inn:()=>{
+      ctx.fillStyle='#1a0e08';ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#3a2010';ctx.fillRect(0,H*.62,W,H*.38);
+      ctx.fillStyle='#2a1808';ctx.fillRect(0,0,W,H*.62);
+      for(let i=0;i<3;i++){ctx.fillStyle='#4a2e18';ctx.fillRect(16+i*92,H*.36,80,50);ctx.fillStyle='#fff8f0';ctx.fillRect(20+i*92,H*.36,72,20);}
+      ctx.fillStyle='#5a3520';ctx.fillRect(W/2-18,8,36,H*.44);
+      ctx.fillStyle='rgba(255,96,32,.7)';ctx.fillRect(W/2-11,H*.28,22,H*.14);
+      ctx.font='24px serif';ctx.textAlign='center';ctx.fillText('🕯️',28,H*.28);ctx.fillText('🕯️',W-28,H*.28);
+    },
+    weapon:()=>{
+      ctx.fillStyle='#100a04';ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#2a1a08';ctx.fillRect(0,H*.65,W,H*.35);
+      ctx.fillStyle='#1a1006';ctx.fillRect(0,0,W,H*.65);
+      ctx.fillStyle='#4a3010';ctx.fillRect(W*.18,H*.5,W*.64,H*.14);
+      ctx.font='28px serif';ctx.textAlign='center';
+      ['⚔️','🗡️','🪃','🏹','🔱'].forEach((w,i)=>ctx.fillText(w,26+i*52,H*.34));
+    },
+    guild:()=>{
+      ctx.fillStyle='#0a0814';ctx.fillRect(0,0,W,H);
+      const g=ctx.createRadialGradient(W/2,H/2,5,W/2,H/2,80);
+      g.addColorStop(0,'rgba(168,85,247,.3)');g.addColorStop(1,'transparent');
+      ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+      ctx.strokeStyle='rgba(168,85,247,.4)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(W/2,H/2,50,0,Math.PI*2);ctx.stroke();
+      ctx.font='40px serif';ctx.textAlign='center';ctx.fillText('✨',W/2,H/2+14);
+    },
+    armor:()=>{
+      ctx.fillStyle='#0e0e14';ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#1e1e2a';ctx.fillRect(0,H*.62,W,H*.38);
+      ctx.font='28px serif';ctx.textAlign='center';
+      ['🛡️','🪖','🧤','👢','💍'].forEach((e,i)=>ctx.fillText(e,24+i*56,H*.38));
+    },
+    tavern:()=>{
+      ctx.fillStyle='#180e04';ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#2e1a08';ctx.fillRect(0,H*.62,W,H*.38);
+      ctx.fillStyle='#4a2c10';ctx.fillRect(0,H*.5,W,H*.12);
+      ctx.font='26px serif';ctx.textAlign='center';
+      ['🍺','🍖','🎵','🎶'].forEach((e,i)=>ctx.fillText(e,36+i*72,H*.36));
+    },
+    dungeon:()=>{
+      ctx.fillStyle='#050208';ctx.fillRect(0,0,W,H);
+      ctx.font='48px serif';ctx.textAlign='center';ctx.fillText('💀',W/2,H/2+16);
+      ctx.fillStyle='#e84a4a';ctx.font='bold 11px sans-serif';ctx.fillText('危険！強敵の巣窟',W/2,H*.88);
+    },
+    temple:()=>{
+      ctx.fillStyle='#0a0814';ctx.fillRect(0,0,W,H);
+      const g=ctx.createRadialGradient(W/2,H/3,5,W/2,H/3,80);
+      g.addColorStop(0,'rgba(245,200,66,.3)');g.addColorStop(1,'transparent');
+      ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+      ctx.font='40px serif';ctx.textAlign='center';ctx.fillText('⛩️',W/2,H*.46);
+    },
+  };
+  (scenes[b.type]||scenes.tavern)();
+}
+
+function renderContent(b){
+  const el=document.getElementById('icont');
+  if(b.type==='inn'){
+    el.innerHTML=`<div class="innbtn" onclick="restInn()">🛏️ 宿泊する（50G）<br><small style="font-size:10px;font-weight:400">HP・MP完全回復</small></div>
+      <div class="ininf">HP: ${G.p.hp}/${G.p.mhp} &nbsp; MP: ${G.p.mp}/${G.p.mmp}<br>所持金: ${G.p.gold}G</div>`;return;
+  }
+  if(b.type==='weapon'){
+    const shop=[{n:'鉄の剣',ico:'🗡️',d:'ATK+12',pr:200,sa:{atk:4}},{n:'ミスリルソード',ico:'⚔️',d:'ATK+22',pr:600,sa:{atk:10}},{n:'勇者の剣',ico:'🌟',d:'ATK+35 MAG+10',pr:1500,sa:{atk:17,mag:10}},{n:'竜殺しエクスカリバー',ico:'🔱',d:'ATK+55 MAG+18',pr:4000,sa:{atk:28,mag:18}}];
+    el.innerHTML='<div class="slist">'+shop.map((s,i)=>`<div class="si" onclick="buyWeapon(${i})"><div class="siico">${s.ico}</div><div class="sii"><div class="sin">${s.n}</div><div class="sid">${s.d}</div></div><div class="sip">${s.pr}G</div></div>`).join('')+'</div>';
+    el._sw=shop;return;
+  }
+  if(b.type==='armor'){
+    const shop=[{n:'革の鎧',ico:'🛡️',d:'DEF+8',pr:180,sa:{def:3}},{n:'チェインメイル',ico:'🪖',d:'DEF+18',pr:500,sa:{def:8}},{n:'ミスリル鎧',ico:'✨',d:'DEF+30',pr:1200,sa:{def:15}},{n:'竜鱗の鎧',ico:'🐲',d:'DEF+50 HP+30',pr:3500,sa:{def:25,mhp:30}}];
+    const accs=[{n:'魔力の指輪',ico:'💍',d:'MAG+6',pr:300,sa:{mag:6}},{n:'守りの護符',ico:'🧿',d:'DEF+10',pr:700,sa:{def:10}},{n:'力帯',ico:'💪',d:'ATK+12',pr:900,sa:{atk:12}},{n:'賢者の宝玉',ico:'🔮',d:'MAG+20 MP+20',pr:2500,sa:{mag:20,mmp:20}}];
+    el.innerHTML='<div class="estt" style="margin-bottom:8px">🛡️ 防具</div><div class="slist">'+shop.map((s,i)=>`<div class="si" onclick="buyArmor(${i})"><div class="siico">${s.ico}</div><div class="sii"><div class="sin">${s.n}</div><div class="sid">${s.d}</div></div><div class="sip">${s.pr}G</div></div>`).join('')+'</div>'
+      +'<div class="estt" style="margin:14px 0 8px">💍 アクセサリー</div><div class="slist">'+accs.map((s,i)=>`<div class="si" onclick="buyAcc(${i})"><div class="siico">${s.ico}</div><div class="sii"><div class="sin">${s.n}</div><div class="sid">${s.d}</div></div><div class="sip">${s.pr}G</div></div>`).join('')+'</div>';
+    el._sa=shop;el._sacc=accs;return;
+  }
+  if(b.type==='guild'){
+    const learnable=LEARN_SKILLS.filter(s=>!G.skills.some(k=>k.id===s.id));
+    const learnHtml=learnable.length
+      ? '<div class="estt" style="margin:14px 0 8px">📜 新スキルを習得</div><div class="slist">'+learnable.map(s=>`<div class="si" onclick="learnSkill('${s.id}')"><div class="siico">${s.icon}</div><div class="sii"><div class="sin">${s.name}</div><div class="sid">${s.desc} / 💧${s.mp}</div></div><div class="sip">${s.cost}G</div></div>`).join('')+'</div>'
+      : '<div class="ininf" style="margin-top:14px">習得できるスキルは全て覚えた！</div>';
+    el.innerHTML=`<div class="ininf" style="text-align:left;margin-bottom:12px">スキルの修行ができる。現在習得スキル数: ${G.skills.length}</div>
+      <div class="innbtn" onclick="practiceSkill()">📖 特訓する（80G）<br><small style="font-size:10px;font-weight:400">全攻撃スキル威力 +5%</small></div>`+learnHtml;return;
+  }
+  if(b.type==='dungeon'){
+    el.innerHTML=`<div style="color:var(--red);font-size:12px;margin-bottom:12px;text-align:center">⚠️ 強敵の巣窟！万全の準備で挑め</div>
+      <div class="innbtn" style="border-color:var(--red);color:var(--red)" onclick="enterDungeon()">💀 深部に進む<br><small style="font-size:10px;font-weight:400">ボス戦が待ち受ける</small></div>`;return;
+  }
+  if(b.type==='temple'){
+    el.innerHTML=`<div class="ininf" style="margin-bottom:12px">古の神殿。祈れば加護が得られると言われている。</div>
+      <div class="innbtn" onclick="templeBlessing()">🙏 祈りを捧げる（100G）<br><small style="font-size:10px">ランダムなステータス強化</small></div>`;return;
+  }
+  if(b.type==='tavern'){
+    el.innerHTML=`<div class="ininf" style="text-align:left;margin-bottom:12px">情報を集めよう。消耗品も揃っている。</div>
+      <div class="slist">
+        <div class="si" onclick="buyConsume('pot',80)"><div class="siico">🧪</div><div class="sii"><div class="sin">ポーション</div><div class="sid">HP+50</div></div><div class="sip">80G</div></div>
+        <div class="si" onclick="buyConsume('mpp',100)"><div class="siico">💧</div><div class="sii"><div class="sin">マナポーション</div><div class="sid">MP+30</div></div><div class="sip">100G</div></div>
+        <div class="si" onclick="buyConsume('bomb',150)"><div class="siico">💣</div><div class="sii"><div class="sin">ファイアボム</div><div class="sid">敵60ダメ</div></div><div class="sip">150G</div></div>
+      </div>`;return;
+  }
+  el.innerHTML='<div style="color:var(--muted);text-align:center;padding:20px">準備中…</div>';
+}
+
+function restInn(){
+  if(G.p.gold<50){toast('ゴールドが足りない！');return;}
+  G.p.gold-=50;G.p.hp=G.p.mhp;G.p.mp=G.p.mmp;
+  toast('💤 ぐっすり眠れた！HP・MP全回復！');updateUI();renderContent(G.curB);
+}
+function buyWeapon(i){
+  const el=document.getElementById('icont'),s=el._sw?.[i];
+  if(!s||G.p.gold<s.pr){toast(G.p.gold<(s?.pr||0)?'ゴールドが足りない！':'エラー');return;}
+  G.p.gold-=s.pr;G.equip.weapon={name:s.n,icon:s.ico,stat:s.d};
+  if(s.sa.atk)G.p.atk+=s.sa.atk;if(s.sa.mag)G.p.mag+=s.sa.mag;
+  toast(`⚔️ ${s.n}を購入！装備した。`);updateUI();
+}
+function applyStats(sa){
+  if(sa.atk)G.p.atk+=sa.atk;if(sa.def)G.p.def+=sa.def;if(sa.mag)G.p.mag+=sa.mag;if(sa.spd)G.p.spd+=sa.spd;
+  if(sa.mhp){G.p.mhp+=sa.mhp;G.p.hp+=sa.mhp;}if(sa.mmp){G.p.mmp+=sa.mmp;G.p.mp+=sa.mmp;}
+}
+function buyArmor(i){
+  const el=document.getElementById('icont'),s=el._sa?.[i];
+  if(!s||G.p.gold<s.pr){toast(G.p.gold<(s?.pr||0)?'ゴールドが足りない！':'エラー');return;}
+  G.p.gold-=s.pr;G.equip.armor={name:s.n,icon:s.ico,stat:s.d};
+  applyStats(s.sa);
+  toast(`🛡️ ${s.n}を購入！装備した。`);updateUI();
+}
+function buyAcc(i){
+  const el=document.getElementById('icont'),s=el._sacc?.[i];
+  if(!s||G.p.gold<s.pr){toast(G.p.gold<(s?.pr||0)?'ゴールドが足りない！':'エラー');return;}
+  G.p.gold-=s.pr;G.equip.acc={name:s.n,icon:s.ico,stat:s.d};
+  applyStats(s.sa);
+  toast(`💍 ${s.n}を購入！装備した。`);updateUI();
+}
+function buyConsume(id,pr){
+  if(G.p.gold<pr){toast('ゴールドが足りない！');return;}
+  G.p.gold-=pr;const it=G.items.find(i=>i.id===id);if(it)it.qty++;
+  toast('🛒 購入した！');updateUI();renderContent(G.curB);
+}
+const LEARN_SKILLS=[
+  {id:'holy',name:'ホーリー',icon:'🌟',desc:'聖なる光・炎上付与',mp:24,pow:90,t:'atk',eff:'burn',cost:1200},
+  {id:'regen',name:'リジェネ',icon:'💟',desc:'HPを80回復',mp:18,pow:80,t:'self',cost:900},
+  {id:'meteo',name:'メテオ',icon:'☄️',desc:'隕石で特大ダメージ',mp:32,pow:120,t:'atk',cost:2000},
+];
+function practiceSkill(){
+  if(G.p.gold<80){toast('ゴールドが足りない！');return;}
+  G.p.gold-=80;G.skills.forEach(s=>{if(s.pow>0&&s.t!=='self')s.pow=Math.floor(s.pow*1.05+1);});
+  toast('📖 スキルが強化された！');updateUI();
+}
+function learnSkill(id){
+  const s=LEARN_SKILLS.find(x=>x.id===id);if(!s)return;
+  if(G.skills.some(k=>k.id===id)){toast('もう習得済み！');return;}
+  if(G.p.gold<s.cost){toast('ゴールドが足りない！');return;}
+  G.p.gold-=s.cost;
+  const {cost,...skill}=s;G.skills.push(skill);
+  toast(`✨ ${s.name}を習得した！`);updateUI();renderContent(G.curB);
+}
+function enterDungeon(){exitBuilding();setTimeout(()=>triggerBattle(true),300);}
+function templeBlessing(){
+  if(G.p.gold<100){toast('ゴールドが足りない！');return;}
+  G.p.gold-=100;const ss=['atk','def','mag','spd'],s=ss[Math.floor(Math.random()*ss.length)];
+  G.p[s]+=3;toast(`🙏 ${s.toUpperCase()}+3！祈りが届いた！`);updateUI();
+}
+
+// ── BATTLE ──
+function triggerBattle(boss=false){
+  let base;
+  if(boss) base={...ENEMIES[7]};
+  else{
+    const z=getZone();
+    // field=平原(スライム各色+雑魚), forest=森(雑魚+ゴブリン系), dungeon=洞窟(強敵)
+    const pool = z==='dungeon' ? [ENEMIES[4],ENEMIES[5],ENEMIES[6]]
+               : z==='field'   ? [ENEMIES[0],ENEMIES[1],ENEMIES[2],ENEMIES[8],ENEMIES[9],ENEMIES[10],ENEMIES[11]]
+               :                  [ENEMIES[0],ENEMIES[1],ENEMIES[2],ENEMIES[3],ENEMIES[8]];
+    base={...pool[Math.floor(Math.random()*pool.length)]};
+  }
+  const sc=Math.max(1,G.p.lv*.85);
+  G.enemy={...base,hp:Math.floor(base.mhp*sc),mhp:Math.floor(base.mhp*sc),
+    atk:Math.floor(base.atk*sc),def:Math.floor(base.def*sc),
+    xp:Math.floor(base.xp*sc),gold:Math.floor(base.gold*sc),status:[]};
+  G.inBattle=true;G.myTurn=true;G.buffs={};
+  updateBUI();setLog(`${G.enemy.name}があらわれた！`);showScreen('bs');
+  // Battle bg particles
+  const bg=document.getElementById('bbg');bg.innerHTML='';
+  for(let i=0;i<10;i++){
+    const d=document.createElement('div');d.className='bp';
+    const sz=Math.random()*60+20;
+    d.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;
+      background:radial-gradient(circle,rgba(${Math.random()>.5?'232,74,74':'168,85,247'},.18),transparent);
+      --d:${3+Math.random()*4}s;--dl:${Math.random()*3}s`;
+    bg.appendChild(d);
+  }
+}
+
+function updateBUI(){
+  const p=G.p,e=G.enemy;
+  document.getElementById('blv').textContent=p.lv;
+  document.getElementById('bhb').style.width=(p.hp/p.mhp*100)+'%';
+  document.getElementById('bhn').textContent=`${p.hp}/${p.mhp}`;
+  document.getElementById('bmb').style.width=(p.mp/p.mmp*100)+'%';
+  document.getElementById('bmn').textContent=`${p.mp}/${p.mmp}`;
+  const esp=document.getElementById('esp');
+  const eim=e.img&&ENEMY_IMGS[e.img];
+  if(eim){
+    esp.innerHTML=`<img src="${eim.src}" style="height:200px;width:auto;display:block;filter:drop-shadow(0 8px 16px rgba(0,0,0,.5))">`;
+  } else {
+    esp.textContent=e.icon;
+  }
+  document.getElementById('enm').textContent=e.name+(e.boss?' 👑':'');
+  document.getElementById('elv').textContent='Lv.'+e.lv;
+  document.getElementById('ehf').style.width=(e.hp/e.mhp*100)+'%';
+  document.getElementById('ehtx').textContent=`HP: ${e.hp}/${e.mhp}`;
+  document.getElementById('sbdg').innerHTML=(e.status||[]).map(s=>`<span class="sb sb-${s==='poison'?'p':s==='slow'?'s':'b'}">${{poison:'☠️毒',slow:'🧊遅延',burn:'🔥炎上'}[s]||s}</span>`).join('');
+}
+
+function setLog(msg){document.getElementById('blog').innerHTML=msg;}
+
+function doAtk(){
+  if(!G.myTurn||!G.inBattle) return;
+  G.myTurn=false;
+  const hi=document.getElementById('hero-battle-img');
+  if(hi){hi.style.transform='translateX(40px) scale(1.05)';setTimeout(()=>hi.style.transform='',180);}
+  const p=G.p,e=G.enemy,crit=Math.random()<.1;
+  let dmg=Math.max(1,p.atk-Math.floor(e.def*.45)+Math.floor(Math.random()*8));
+  if(crit) dmg=Math.floor(dmg*1.6);
+  e.hp=Math.max(0,e.hp-dmg);
+  popDmg(dmg,crit?'#f5c842':'#e84a4a',false);
+  setLog(`アルシアのこうげき！${crit?'<span class="hl">クリティカル！</span>':''} <span class="hl">${e.name}</span>に${dmg}ダメージ！`);
+  tickStatus();updateBUI();
+  if(e.hp<=0){battleWin();return;}
+  setTimeout(enemyTurn,950);
+}
+
+function openSkillSelect(){
+  if(!G.myTurn||!G.inBattle) return;
+  document.getElementById('bskbd').innerHTML=G.skills.map(sk=>`
+    <div class="bskc${G.p.mp<sk.mp?' dis':''}" onclick="useBSk('${sk.id}')">
+      <div class="skico">${sk.icon}</div>
+      <div class="ski"><div class="skn">${sk.name}</div><div class="skd">${sk.desc}</div></div>
+      <div><div class="skmp">💧${sk.mp}</div>${sk.pow?`<div class="skpw">威力${sk.pow}</div>`:''}</div>
+    </div>`).join('');
+  openM('bskm');
+}
+
+function useBSk(id){
+  closeM('bskm');
+  if(!G.myTurn||!G.inBattle) return;
+  const sk=G.skills.find(s=>s.id===id);
+  if(!sk||G.p.mp<sk.mp){toast('MPが足りない！');return;}
+  G.myTurn=false;G.p.mp-=sk.mp;
+  const p=G.p,e=G.enemy;
+  if(sk.t==='self'){
+    p.hp=Math.min(p.mhp,p.hp+sk.pow);popDmg('+'+sk.pow,'#27c96a',true);
+    setLog(`✨ <span class="hl">${sk.name}</span>！HPが${sk.pow}回復！`);
+  } else if(sk.t==='buff'){
+    G.buffs.shield=2;setLog(`🛡️ <span class="hl">${sk.name}</span>！防御力が上がった！`);
+  } else if(sk.t==='drain'){
+    const dmg=Math.max(1,sk.pow+Math.floor(p.mag*.5)-Math.floor(e.def*.3));
+    e.hp=Math.max(0,e.hp-dmg);p.hp=Math.min(p.mhp,p.hp+Math.floor(dmg*.5));
+    popDmg(dmg,'#9b59b6',false);
+    setLog(`🌑 <span class="hl">${sk.name}</span>！${dmg}吸収！`);
+  } else {
+    const dmg=Math.max(1,sk.pow+Math.floor(p.mag*.6)-Math.floor(e.def*.3)+Math.floor(Math.random()*12));
+    e.hp=Math.max(0,e.hp-dmg);
+    const cols={fire:'#ff8c42',thun:'#f5c842',bliz:'#00d4ff',slash:'#a855f7'};
+    popDmg(dmg,cols[sk.id]||'#a855f7',false);
+    setLog(`✨ <span class="hl">${sk.name}</span>！${e.name}に<span class="hl">${dmg}</span>の魔法ダメージ！`);
+    if(sk.eff&&!e.status.includes(sk.eff)) e.status.push(sk.eff);
+  }
+  tickStatus();updateBUI();
+  if(e.hp<=0){battleWin();return;}
+  setTimeout(enemyTurn,950);
+}
+
+function doBattleItem(){
+  if(!G.myTurn||!G.inBattle) return;
+  const us=G.items.filter(i=>i.qty>0&&(i.t==='heal'||i.t==='fullhp'||i.t==='mp'||i.t==='dmg'));
+  if(!us.length){setLog('使えるアイテムがない！');return;}
+  G.myTurn=false;const it=us[0];it.qty--;
+  if(it.t==='dmg'){
+    G.enemy.hp=Math.max(0,G.enemy.hp-it.v);popDmg(it.v,'#ff8c42',false);
+    setLog(`💣 ${it.name}！${G.enemy.name}に${it.v}ダメージ！`);
+    tickStatus();updateBUI();if(G.enemy.hp<=0){battleWin();return;}
+    setTimeout(enemyTurn,950);return;
+  }
+  applyItem(it);tickStatus();updateBUI();setTimeout(enemyTurn,950);
+}
+
+function applyItem(it){
+  const p=G.p;
+  if(it.t==='heal'){const h=Math.min(it.v,p.mhp-p.hp);p.hp+=h;popDmg('+'+h,'#27c96a',true);setLog(`🧪 ${it.name}！HPが${h}回復！`);}
+  else if(it.t==='fullhp'){p.hp=p.mhp;popDmg('FULL!','#27c96a',true);setLog(`💎 ${it.name}！HPが完全回復！`);}
+  else if(it.t==='mp'){const m=Math.min(it.v,p.mmp-p.mp);p.mp+=m;setLog(`💧 ${it.name}！MPが${m}回復！`);}
+}
+
+function tickStatus(){
+  const e=G.enemy;if(!e.status) return;
+  if(e.status.includes('poison')){const d=Math.floor(e.mhp*.05);e.hp=Math.max(0,e.hp-d);popDmg(d,'#9b59b6',false);}
+  if(e.status.includes('burn')){const d=Math.floor(e.mhp*.04);e.hp=Math.max(0,e.hp-d);popDmg(d,'#ff8c42',false);}
+}
+
+function tryRun(){
+  if(!G.myTurn||!G.inBattle) return;
+  G.myTurn=false;
+  if(Math.random()<.55){G.inBattle=false;setLog('うまく逃げ切った！');setTimeout(()=>{showScreen('gs');updateUI();renderMap();},900);}
+  else{setLog('逃げられなかった！');setTimeout(enemyTurn,800);}
+}
+
+function enemyTurn(){
+  if(!G.inBattle) return;
+  const p=G.p,e=G.enemy;
+  if(e.status?.includes('slow')&&Math.random()<.4){setLog(`🧊 ${e.name}は動きが遅い！`);G.myTurn=true;updateBUI();if(G.buffs.shield)G.buffs.shield--;return;}
+  const def=p.def+(G.buffs.shield>0?25:0);if(G.buffs.shield>0)G.buffs.shield--;
+  const dmg=Math.max(1,e.atk-Math.floor(def*.45)+Math.floor(Math.random()*6));
+  p.hp=Math.max(0,p.hp-dmg);
+  setLog(`${e.name}のこうげき！アルシアに<span class="hl">${dmg}</span>ダメージ！`);
+  popDmg(dmg,'#e84a4a',true);updateBUI();
+  if(p.hp<=0){battleLose();return;}
+  G.myTurn=true;
+}
+
+// ── クエスト進行・報酬 ──
+function checkQuestDone(q){
+  if(q&&!q.claimed&&q.prog>=q.goal){
+    q.done=true;q.claimed=true;
+    G.p.gold+=q.rgold;gainXP(q.rxp);
+    toast(`📜 クエスト達成！「${q.title}」 XP+${q.rxp} 💰+${q.rgold}`);
+  }
+}
+function bumpQuest(qid){
+  const q=G.quests.find(x=>x.id===qid);
+  if(!q||q.claimed) return;
+  q.prog=Math.min(q.goal,q.prog+1);
+  checkQuestDone(q);
+}
+const SLIME_NAMES=['スライム','みどりスライム','きいろスライム','どくスライム','ピンクスライム'];
+
+function battleWin(){
+  G.inBattle=false;const e=G.enemy;
+  G.p.gold+=e.gold;gainXP(e.xp);
+  if(SLIME_NAMES.includes(e.name)) bumpQuest('q1');
+  const qm={'ゴブリン':'q2','洞窟の主':'q3','スケルトン':'q5','オーク':'q6','暗黒騎士':'q7','ドラゴン':'q8'};
+  if(qm[e.name]) bumpQuest(qm[e.name]);
+  setLog(`${e.name}を倒した！ <span class="hl">XP+${e.xp}</span> <span class="hl">Gold+${e.gold}💰</span>`);
+  setTimeout(()=>{showScreen('gs');updateUI();renderMap();saveGame();},1300);
+}
+
+function battleLose(){
+  G.inBattle=false;G.p.hp=Math.floor(G.p.mhp*.25);G.p.x=10;G.p.y=10;G.p.px=10;G.p.py=10;G.p.tx=10;G.p.ty=10;lastArriveKey='10,10';
+  setLog('やられてしまった…はじまりの村に戻った。');
+  setTimeout(()=>{showScreen('gs');updateUI();renderMap();},1300);
+}
+
+function gainXP(amt){
+  G.p.xp+=amt;
+  while(G.p.xp>=G.p.xpn){
+    G.p.xp-=G.p.xpn;G.p.lv++;G.p.xpn=Math.floor(G.p.xpn*1.45);
+    G.p.mhp+=18;G.p.hp=G.p.mhp;G.p.mmp+=10;G.p.mp=G.p.mmp;
+    G.p.atk+=5;G.p.def+=4;G.p.mag+=6;G.p.spd+=3;showLU();
+  }
+}
+
+function showLU(){
+  const el=document.createElement('div');el.className='lvup';
+  el.innerHTML=`<div class="lut">LEVEL UP!</div><div class="lulv">${G.p.lv}</div><div class="lun">アルシア</div>`;
+  document.body.appendChild(el);setTimeout(()=>el.remove(),2200);
+}
+
+// ── UI ──
+function updateUI(){
+  const p=G.p;
+  document.getElementById('clv').textContent=p.lv;
+  document.getElementById('hb').style.width=(p.hp/p.mhp*100)+'%';document.getElementById('hn').textContent=`${p.hp}/${p.mhp}`;
+  document.getElementById('mb').style.width=(p.mp/p.mmp*100)+'%';document.getElementById('mn').textContent=`${p.mp}/${p.mmp}`;
+  document.getElementById('xb').style.width=(p.xp/p.xpn*100)+'%';document.getElementById('xn').textContent=`${p.xp}/${p.xpn}`;
+  document.getElementById('gv').textContent=p.gold;
+}
+
+function openM(id){
+  if(id==='stm') fillStatus();
+  if(id==='itm') fillItems();
+  if(id==='qum') fillQuests();
+  if(id==='skm') fillSkills();
+  document.getElementById(id).classList.add('show');
+}
+function closeM(id){document.getElementById(id).classList.remove('show');}
+
+function fillStatus(){
+  const p=G.p;document.getElementById('slv').textContent=p.lv;
+  document.getElementById('sgrid').innerHTML=[
+    {l:'HP',v:`${p.hp}/${p.mhp}`},{l:'MP',v:`${p.mp}/${p.mmp}`},
+    {l:'攻撃力',v:p.atk},{l:'防御力',v:p.def},{l:'魔法力',v:p.mag},{l:'素早さ',v:p.spd},
+    {l:'ゴールド',v:p.gold+'G'},{l:'次LVまで',v:(p.xpn-p.xp)+'XP'},
+  ].map(s=>`<div class="sc"><div class="sv">${s.v}</div><div class="sl">${s.l}</div></div>`).join('');
+  document.getElementById('eql').innerHTML=Object.values(G.equip).map(e=>`
+    <div class="eqc"><div class="eqico">${e.icon}</div><div class="eqi"><div class="eqn">${e.name}</div><div class="eqs">${e.stat}</div></div></div>`).join('');
+}
+function fillItems(){
+  document.getElementById('itbd').innerHTML=G.items.map(i=>`
+    <div class="itc" onclick="useItemOut('${i.id}')">
+      <div class="itico">${i.icon}</div><div class="iti"><div class="itn">${i.name}</div><div class="itd">${i.desc}</div></div>
+      <div class="itq">×${i.qty}</div></div>`).join('');
+}
+function fillQuests(){
+  document.getElementById('qubd').innerHTML=G.quests.map(q=>`
+    <div class="qc ${q.done?'dq':'aq'}">
+      <div class="qt">${q.done?'✅':'🔵'} ${q.title}</div><div class="qd">${q.desc}</div>
+      <div class="qpw"><div class="qpf" style="width:${q.prog/q.goal*100}%"></div></div>
+      <div class="qpt">${q.prog}/${q.goal}</div><div class="qr">🎁 XP${q.rxp} / Gold${q.rgold}${q.claimed?' ✔受取済':''}</div>
+    </div>`).join('');
+}
+function fillSkills(){
+  document.getElementById('skbd').innerHTML=G.skills.map(sk=>`
+    <div class="skc" onclick="useSkOut('${sk.id}')">
+      <div class="skico">${sk.icon}</div><div class="ski"><div class="skn">${sk.name}</div><div class="skd">${sk.desc}</div></div>
+      <div><div class="skmp">💧${sk.mp}</div>${sk.pow?`<div class="skpw">威力${sk.pow}</div>`:''}</div>
+    </div>`).join('');
+}
+
+function useItemOut(id){
+  const it=G.items.find(i=>i.id===id);if(!it||it.qty<=0){toast('アイテムがない！');return;}
+  if(it.t==='heal'){const h=Math.min(it.v,G.p.mhp-G.p.hp);if(!h){toast('HPが満タン！');return;}it.qty--;G.p.hp+=h;toast(`🧪 ${it.name}！HP+${h}`);}
+  else if(it.t==='fullhp'){it.qty--;G.p.hp=G.p.mhp;toast('💎 HPが完全回復！');}
+  else if(it.t==='mp'){const m=Math.min(it.v,G.p.mmp-G.p.mp);if(!m){toast('MPが満タン！');return;}it.qty--;G.p.mp+=m;toast(`💧 ${it.name}！MP+${m}`);}
+  else{toast('戦闘中のみ使用可！');return;}
+  updateUI();fillItems();
+}
+function useSkOut(id){
+  const sk=G.skills.find(s=>s.id===id);if(!sk) return;
+  if(G.p.mp<sk.mp){toast('MPが足りない！');return;}
+  if(sk.t==='self'){G.p.mp-=sk.mp;G.p.hp=Math.min(G.p.mhp,G.p.hp+sk.pow);toast(`💚 ${sk.name}！HP+${sk.pow}`);updateUI();}
+  else toast('⚔️ 戦闘中のみ使用可！');
+  closeM('skm');
+}
+
+function popDmg(val,color,player=false){
+  const el=document.createElement('div');el.className='dp2';
+  el.textContent=val;
+  el.style.cssText=`color:${color};font-size:${String(val).length>3?18:24}px;left:${player?20:55}%;top:${player?60:38}%;`;
+  document.body.appendChild(el);setTimeout(()=>el.remove(),1100);
+}
+
+function toast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+function saveGame(){
+  try{localStorage.setItem('et2sv',JSON.stringify({p:G.p,items:G.items,quests:G.quests,equip:G.equip,skills:G.skills,visited:[...G.visited]}));toast('💾 セーブした！');}catch(e){}
+}
+function loadSave(){
+  try{const r=localStorage.getItem('et2sv');if(!r) return;const d=JSON.parse(r);
+    Object.assign(G.p,d.p);G.p.px=G.p.x;G.p.py=G.p.y;G.p.tx=G.p.x;G.p.ty=G.p.y;if(d.items)G.items=d.items;
+    // クエストは既定の最新リストを保ち、進捗のみ復元（新クエストも表示される）
+    if(d.quests)d.quests.forEach(sq=>{const q=G.quests.find(x=>x.id===sq.id);if(q){q.prog=sq.prog||0;q.done=!!sq.done;q.claimed=sq.claimed??sq.done??false;}});
+    if(d.equip)G.equip=d.equip;if(d.skills&&d.skills.length)G.skills=d.skills;
+    if(d.visited)G.visited=new Set(d.visited);toast('📂 データを読み込んだ！');}catch(e){}
+}
+
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+
+function startGame(){
+  loadSave();showScreen('gs');initCanvas();bindDpad();bindSwipe();updateUI();renderMap();
+  document.getElementById('hero-battle-img').src=HERO_BATTLE_SRC;
+  requestAnimationFrame(gameLoop);
+  toast('🗡️ クロニクル・オブ・エターニアへようこそ！');
+}
+
+// Title stars
+(function(){const c=document.getElementById('tstar');for(let i=0;i<60;i++){const s=document.createElement('div');s.className='sp';s.style.cssText=`left:${Math.random()*100}%;top:${Math.random()*100}%;--d:${2+Math.random()*4}s;--dl:${Math.random()*4}s;opacity:${Math.random()}`;c.appendChild(s);}})();
+
+document.addEventListener('keydown',e=>{
+  if(G.inBattle) return;
+  if(e.key==='ArrowUp'||e.key==='w') mv('up');
+  if(e.key==='ArrowDown'||e.key==='s') mv('down');
+  if(e.key==='ArrowLeft'||e.key==='a') mv('left');
+  if(e.key==='ArrowRight'||e.key==='d') mv('right');
+  if(e.key==='Enter') enterBuilding();
+});
+window.addEventListener('resize',()=>{if(!mc) return;const w=document.getElementById('mw');mc.width=w.clientWidth;mc.height=w.clientHeight;renderMap();});
+</script>
+</body>
+</html>
