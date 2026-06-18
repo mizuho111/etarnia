@@ -466,7 +466,7 @@ const G={
   enemy:null,inBattle:false,myTurn:true,inIndoor:false,curB:null,buffs:{},time:0,
   items:[
     {id:'pot',name:'ポーション',icon:'🧪',desc:'HPを50回復',qty:3,t:'heal',v:50},
-    {id:'elix',name:'エリクサー',icon:'💎',desc:'HPを完全回復',qty:1,t:'fullhp',v:0},
+    {id:'elix',name:'エリクサー',icon:'💎',desc:'HP・MPを完全回復',qty:1,t:'fullhp',v:0},
     {id:'mpp',name:'マナポーション',icon:'💧',desc:'MPを30回復',qty:2,t:'mp',v:30},
     {id:'anti',name:'解毒薬',icon:'🌿',desc:'毒を治す',qty:2,t:'cure',v:0},
     {id:'bomb',name:'ファイアボム',icon:'💣',desc:'敵に60ダメージ',qty:1,t:'dmg',v:60},
@@ -1187,6 +1187,7 @@ function renderContent(b){
         <div class="si" onclick="buyConsume('pot',80)"><div class="siico">🧪</div><div class="sii"><div class="sin">ポーション</div><div class="sid">HP+50</div></div><div class="sip">80G</div></div>
         <div class="si" onclick="buyConsume('mpp',100)"><div class="siico">💧</div><div class="sii"><div class="sin">マナポーション</div><div class="sid">MP+30</div></div><div class="sip">100G</div></div>
         <div class="si" onclick="buyConsume('bomb',150)"><div class="siico">💣</div><div class="sii"><div class="sin">ファイアボム</div><div class="sid">敵60ダメ</div></div><div class="sip">150G</div></div>
+        <div class="si" onclick="buyConsume('elix',600)"><div class="siico">💎</div><div class="sii"><div class="sin">エリクサー</div><div class="sid">HP・MP完全回復</div></div><div class="sip">600G</div></div>
       </div>`;return;
   }
   el.innerHTML='<div style="color:var(--muted);text-align:center;padding:20px">準備中…</div>';
@@ -1222,9 +1223,18 @@ function buyAcc(i){
   applyStats(s.sa);
   toast(`💍 ${s.n}を購入！装備した。`);updateUI();
 }
+const ITEM_DEFS={
+  pot:{id:'pot',name:'ポーション',icon:'🧪',desc:'HPを50回復',t:'heal',v:50},
+  mpp:{id:'mpp',name:'マナポーション',icon:'💧',desc:'MPを30回復',t:'mp',v:30},
+  bomb:{id:'bomb',name:'ファイアボム',icon:'💣',desc:'敵に60ダメージ',t:'dmg',v:60},
+  elix:{id:'elix',name:'エリクサー',icon:'💎',desc:'HP・MPを完全回復',t:'fullhp',v:0},
+  anti:{id:'anti',name:'解毒薬',icon:'🌿',desc:'毒を治す',t:'cure',v:0},
+};
 function buyConsume(id,pr){
   if(G.p.gold<pr){toast('ゴールドが足りない！');return;}
-  G.p.gold-=pr;const it=G.items.find(i=>i.id===id);if(it)it.qty++;
+  G.p.gold-=pr;let it=G.items.find(i=>i.id===id);
+  if(!it&&ITEM_DEFS[id]){it={...ITEM_DEFS[id],qty:0};G.items.push(it);}
+  if(it)it.qty++;
   toast('🛒 購入した！');updateUI();renderContent(G.curB);
 }
 const LEARN_SKILLS=[
@@ -1411,7 +1421,7 @@ function doBattleItem(){
 function applyItem(it){
   const p=G.p;
   if(it.t==='heal'){const h=Math.min(it.v,p.mhp-p.hp);p.hp+=h;popDmg('+'+h,'#27c96a',true);setLog(`🧪 ${it.name}！HPが${h}回復！`);}
-  else if(it.t==='fullhp'){p.hp=p.mhp;popDmg('FULL!','#27c96a',true);setLog(`💎 ${it.name}！HPが完全回復！`);}
+  else if(it.t==='fullhp'){p.hp=p.mhp;p.mp=p.mmp;popDmg('FULL!','#27c96a',true);setLog(`💎 ${it.name}！HP・MPが完全回復！`);}
   else if(it.t==='mp'){const m=Math.min(it.v,p.mmp-p.mp);p.mp+=m;setLog(`💧 ${it.name}！MPが${m}回復！`);}
 }
 
@@ -1551,7 +1561,7 @@ function fillSkills(){
 function useItemOut(id){
   const it=G.items.find(i=>i.id===id);if(!it||it.qty<=0){toast('アイテムがない！');return;}
   if(it.t==='heal'){const h=Math.min(it.v,G.p.mhp-G.p.hp);if(!h){toast('HPが満タン！');return;}it.qty--;G.p.hp+=h;toast(`🧪 ${it.name}！HP+${h}`);}
-  else if(it.t==='fullhp'){it.qty--;G.p.hp=G.p.mhp;toast('💎 HPが完全回復！');}
+  else if(it.t==='fullhp'){it.qty--;G.p.hp=G.p.mhp;G.p.mp=G.p.mmp;toast('💎 HP・MP完全回復！');}
   else if(it.t==='mp'){const m=Math.min(it.v,G.p.mmp-G.p.mp);if(!m){toast('MPが満タン！');return;}it.qty--;G.p.mp+=m;toast(`💧 ${it.name}！MP+${m}`);}
   else{toast('戦闘中のみ使用可！');return;}
   updateUI();fillItems();
