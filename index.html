@@ -452,7 +452,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="em">🌟</div>
   <div class="endt">CHRONICLE OF ETARNIA</div>
   <div class="sub" id="endsub"></div>
-  <button class="t-btn" style="padding:12px 32px;font-size:14px" onclick="document.getElementById('ends').classList.remove('show')">▶ 冒険を続ける</button>
+  <button class="t-btn" style="padding:12px 32px;font-size:14px" onclick="endsContinue()">▶ 冒険を続ける</button>
 </div>
 
 <script>
@@ -534,7 +534,7 @@ const G={
   ],
   visited:new Set(),
   lastNpc:null,
-  story:{idx:0,frags:0,goblins:0,introShown:[],ending:false},
+  story:{idx:0,frags:0,goblins:0,introShown:[],ending:false,bossKills:0},
 };
 
 // ══════════ メインストーリー ══════════
@@ -670,7 +670,7 @@ function storyOnKill(name){
 function doEnding(){
   G.story.idx=5;G.story.ending=true;
   showCutscene(STORY_ENDING,()=>{
-    document.getElementById('endsub').innerHTML='世界エターニアに、再び光が満ちた。<br>あなたは滅びの竜を討ち、世界を救った。<br><br>― 完 ―<br>遊んでくれて、ありがとう！';
+    document.getElementById('endsub').innerHTML='世界エターニアに、再び光が満ちた。<br>あなたは滅びの竜を討ち、世界を救った。<br><br>― 完 ―<br>遊んでくれて、ありがとう！<br><br><span style="color:#ff8c42">…だが、滅びの竜は滅びを拒んだ。<br>「続ける」と、より強き竜が甦る――</span>';
     document.getElementById('ends').classList.add('show');
     updateStoryUI();saveGame(true);
   });
@@ -1215,7 +1215,8 @@ function renderContent(b){
     if(G.story.idx===4){
       html+=`<div class="innbtn" style="border-color:var(--red);color:var(--red);margin-top:12px" onclick="triggerFinalBoss()">🐉 滅びの竜と対決する<br><small style="font-size:10px">星辰のかけら 3/3 ― 最終決戦</small></div>`;
     } else if(G.story.idx>=5){
-      html+=`<div class="ininf" style="margin-top:14px;color:var(--gold)">★ あなたは滅びの竜を討ち、世界を救った英雄だ。</div>`;
+      html+=`<div class="ininf" style="margin-top:14px;color:var(--gold)">★ 世界を救った英雄。だが滅びの竜は何度でも甦る…</div>
+        <div class="innbtn" style="border-color:var(--red);color:var(--red);margin-top:8px" onclick="triggerFinalBoss()">🐉 甦りし魔王ヴァルガに挑む<br><small style="font-size:10px">これまでの撃破 ${G.story.bossKills||0} 回 ― 挑むたびに強くなる</small></div>`;
     } else {
       html+=`<div class="ininf" style="margin-top:14px;color:var(--m2)">…まだ三つの星辰のかけらが揃っていないようだ。(${G.story.frags}/3)</div>`;
     }
@@ -1337,12 +1338,23 @@ function triggerBattle(boss=false){
   }
 }
 
+function bossStats(n){
+  // n=これまでの撃破回数。復活ごとに強化
+  return {
+    mhp:Math.floor(1500*(1+n*0.6)),
+    atk:Math.floor(90*(1+n*0.45)),
+    def:Math.floor(35*(1+n*0.30)),
+    xp:Math.floor(5000*(1+n*0.8)),
+    gold:Math.floor(5000*(1+n*0.8)),
+  };
+}
 function triggerFinalBoss(){
   if(G.inIndoor) exitBuilding();
-  const base={name:'滅びの竜 ヴァルガ',img:'e_dragon',icon:'🐉',lv:15,mhp:1500,atk:90,def:35,xp:5000,gold:5000,boss:true};
+  const n=G.story.bossKills||0, s=bossStats(n);
+  const base={name:'滅びの竜 ヴァルガ'+(n?` ＋${n}`:''),img:'e_dragon',icon:'🐉',lv:15+n*3,boss:true,...s};
   G.enemy={...base,hp:base.mhp,status:[],final:true};
   G.inBattle=true;G.myTurn=true;G.buffs={};
-  updateBUI();setLog('滅びの竜ヴァルガが立ちはだかる！世界の命運は、お前に懸かっている！');showScreen('bs');
+  updateBUI();setLog(n?`甦りし滅びの竜ヴァルガ＋${n}が立ちはだかる！`:'滅びの竜ヴァルガが立ちはだかる！世界の命運は、お前に懸かっている！');showScreen('bs');
   const bg=document.getElementById('bbg');bg.innerHTML='';
   for(let i=0;i<12;i++){const d=document.createElement('div');d.className='bp';const sz=Math.random()*70+20;
     d.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;background:radial-gradient(circle,rgba(232,74,74,.22),transparent);--d:${3+Math.random()*4}s;--dl:${Math.random()*3}s`;bg.appendChild(d);}
@@ -1568,17 +1580,51 @@ function bumpQuest(qid){
 }
 const SLIME_NAMES=['スライム','みどりスライム','きいろスライム','どくスライム','ピンクスライム'];
 
+let _pendingRevive=false;
 function battleWin(){
-  G.inBattle=false;const e=G.enemy;
+  const e=G.enemy;
   G.p.gold+=e.gold;gainXP(e.xp);
+  // ── 最終ボス：無限復活モード ──
+  if(e.final){
+    G.story.bossKills=(G.story.bossKills||0)+1;
+    const firstKill=!G.story.ending;
+    G.myTurn=false;
+    setLog(`${e.name}を倒した！ <span class="hl">XP+${e.xp}</span> <span class="hl">Gold+${e.gold}💰</span>`);
+    updateBUI();saveGame(true);
+    if(firstKill){
+      // 物語の決着 → エンディング → 閉じたら無限モードへ
+      G.inBattle=false;
+      setTimeout(()=>{ showScreen('gs');updateUI();renderMap(); _pendingRevive=true; doEnding(); },1300);
+    } else {
+      setTimeout(()=>{ reviveAndResume(); },1300);
+    }
+    return;
+  }
+  // ── 通常の勝利 ──
+  G.inBattle=false;
   if(SLIME_NAMES.includes(e.name)) bumpQuest('q1');
   const qm={'ゴブリン':'q2','洞窟の主':'q3','スケルトン':'q5','オーク':'q6','暗黒騎士':'q7','ドラゴン':'q8'};
   if(qm[e.name]) bumpQuest(qm[e.name]);
   setLog(`${e.name}を倒した！ <span class="hl">XP+${e.xp}</span> <span class="hl">Gold+${e.gold}💰</span>`);
-  const isFinal=e.final;
   setTimeout(()=>{showScreen('gs');updateUI();renderMap();saveGame();
-    if(isFinal){ doEnding(); } else { storyOnKill(e.name); pumpStory(); }
+    storyOnKill(e.name); pumpStory();
   },1300);
+}
+
+function reviveAndResume(){
+  const n=G.story.bossKills||1, s=bossStats(n), e=G.enemy;
+  e.name=`滅びの竜 ヴァルガ ＋${n}`; e.lv=15+n*3;
+  e.mhp=s.mhp; e.hp=s.mhp; e.atk=s.atk; e.def=s.def; e.xp=s.xp; e.gold=s.gold;
+  e.status=[]; e.final=true; e.boss=true;
+  G.inBattle=true; G.myTurn=true; G.buffs={};
+  explosionFx();
+  setLog(`💀 だが魔王は滅びない――！ ヴァルガは更なる力を得て<span class="hl">復活</span>した！（${n+1}体目・強化＋${n}）`);
+  updateBUI(); showScreen('bs');
+}
+
+function endsContinue(){
+  document.getElementById('ends').classList.remove('show');
+  if(_pendingRevive){ _pendingRevive=false; reviveAndResume(); }
 }
 
 function battleLose(){
