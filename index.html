@@ -1019,6 +1019,8 @@ const LEARN_SKILLS=[
   {id:'holy',name:'ホーリー',icon:'🌟',desc:'聖なる光・炎上付与',mp:24,pow:90,t:'atk',eff:'burn',cost:1200},
   {id:'regen',name:'リジェネ',icon:'💟',desc:'HPを80回復',mp:18,pow:80,t:'self',cost:900},
   {id:'meteo',name:'メテオ',icon:'☄️',desc:'隕石で特大ダメージ',mp:32,pow:120,t:'atk',cost:2000},
+  {id:'puruputen',name:'パルプンテ',icon:'🌀',desc:'何が起こるか分からない…',mp:15,pow:0,t:'random',cost:800},
+  {id:'megante',name:'メガンテ',icon:'💥',desc:'自爆して敵に致命の一撃(HP1になる)',mp:5,pow:0,t:'sacrifice',cost:1500},
 ];
 function practiceSkill(){
   if(G.p.gold<80){toast('ゴールドが足りない！');return;}
@@ -1137,6 +1139,21 @@ function useBSk(id){
     e.hp=Math.max(0,e.hp-dmg);p.hp=Math.min(p.mhp,p.hp+Math.floor(dmg*.5));
     popDmg(dmg,'#9b59b6',false);
     setLog(`🌑 <span class="hl">${sk.name}</span>！${dmg}吸収！`);
+  } else if(sk.t==='random'){
+    // パルプンテ：7通りのランダム効果
+    const roll=Math.floor(Math.random()*7);
+    if(roll===0){const dmg=180+Math.floor(p.mag*1.3);e.hp=Math.max(0,e.hp-dmg);popDmg(dmg,'#ff66cc',false);setLog(`🌀 パルプンテ！天変地異が${e.name}を襲う！<span class="hl">${dmg}</span>の大ダメージ！`);}
+    else if(roll===1){if(e.boss){const dmg=Math.floor(e.mhp*.35);e.hp=Math.max(0,e.hp-dmg);popDmg(dmg,'#ff66cc',false);setLog(`🌀 パルプンテ！謎の光が${e.name}を貫いた！${dmg}ダメージ！`);}else{e.hp=0;popDmg('☠️','#ffffff',false);setLog(`🌀 パルプンテ！異次元の渦に飲まれ、${e.name}は消滅した！`);}}
+    else if(roll===2){['poison','burn','slow'].forEach(s=>{if(!e.status.includes(s))e.status.push(s);});setLog(`🌀 パルプンテ！${e.name}は毒・炎上・遅延に侵された！`);}
+    else if(roll===3){p.hp=p.mhp;p.mp=p.mmp;popDmg('FULL!','#27c96a',true);setLog('🌀 パルプンテ！女神の祝福！HP・MPが全回復！');}
+    else if(roll===4){setLog('🌀 パルプンテ！…しかし、何も おこらなかった！');}
+    else if(roll===5){const dmg=40+Math.floor(Math.random()*40);p.hp=Math.max(0,p.hp-dmg);popDmg(dmg,'#e84a4a',true);setLog(`🌀 パルプンテ！呪文が大暴発！アルシアに${dmg}ダメージ！`);}
+    else{const h=Math.floor(e.mhp*.2);e.hp=Math.min(e.mhp,e.hp+h);popDmg('+'+h,'#27c96a',false);setLog(`🌀 パルプンテ！なぜか${e.name}のHPが${h}回復してしまった…！`);}
+  } else if(sk.t==='sacrifice'){
+    // メガンテ：自爆。敵に致命の一撃、自分のHPは1に
+    if(e.boss){const dmg=Math.floor(e.mhp*.5)+p.mag*2;e.hp=Math.max(0,e.hp-dmg);popDmg(dmg,'#ff3030',false);setLog(`💥 メガンテ！アルシアは命を懸けた！${e.name}に<span class="hl">${dmg}</span>の特大ダメージ！`);}
+    else{e.hp=0;popDmg('9999','#ff3030',false);setLog(`💥 メガンテ！アルシアは自爆し、${e.name}を道連れに葬り去った！`);}
+    p.hp=1;popDmg('HP1','#e84a4a',true);
   } else {
     const dmg=Math.max(1,sk.pow+Math.floor(p.mag*.6)-Math.floor(e.def*.3)+Math.floor(Math.random()*12));
     e.hp=Math.max(0,e.hp-dmg);
@@ -1147,6 +1164,7 @@ function useBSk(id){
   }
   tickStatus();updateBUI();
   if(e.hp<=0){battleWin();return;}
+  if(p.hp<=0){battleLose();return;}
   setTimeout(enemyTurn,950);
 }
 
