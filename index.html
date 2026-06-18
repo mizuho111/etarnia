@@ -229,6 +229,43 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 .lut{font-size:11px;color:var(--g2);letter-spacing:3px}
 .lulv{font-size:48px;font-weight:900;color:var(--gold);line-height:1}
 .lun{font-size:14px;color:var(--g3);margin-top:4px}
+
+/* STORY BANNER */
+.sban{position:absolute;top:62px;left:50%;transform:translateX(-50%);max-width:92%;
+  background:rgba(7,9,15,.85);border:1px solid var(--purple);color:var(--g3);
+  font-size:10px;padding:4px 12px;border-radius:12px;cursor:pointer;z-index:40;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;backdrop-filter:blur(4px);
+  box-shadow:0 2px 10px rgba(0,0,0,.5)}
+.sban b{color:var(--cyan)}
+
+/* CUTSCENE */
+.cut{display:none;position:fixed;inset:0;z-index:800;background:rgba(2,3,8,.82);
+  align-items:flex-end;backdrop-filter:blur(3px);cursor:pointer;animation:cf .3s ease}
+.cut.show{display:flex}
+@keyframes cf{from{opacity:0}to{opacity:1}}
+.cutbox{width:100%;margin:0 0 0 0;padding:18px 18px 22px;
+  background:linear-gradient(180deg,rgba(14,20,36,.97),rgba(10,14,26,.99));
+  border-top:2px solid var(--gold);border-radius:18px 18px 0 0;position:relative;
+  min-height:150px;box-shadow:0 -6px 30px rgba(0,0,0,.7)}
+.cutface{position:absolute;top:-54px;left:18px;width:72px;height:72px;border-radius:14px;
+  border:2px solid var(--gold);background:linear-gradient(135deg,#1a2a6e,#5a20ae);
+  display:flex;align-items:center;justify-content:center;font-size:40px;overflow:hidden;
+  box-shadow:0 4px 16px rgba(0,0,0,.6)}
+.cutface img{width:100%;height:100%;object-fit:cover}
+.cutwho{color:var(--gold);font-weight:800;font-size:14px;margin:6px 0 8px 86px;min-height:18px}
+.cuttx{color:var(--text);font-size:14px;line-height:1.85;min-height:54px}
+.cuthint{color:var(--muted);font-size:10px;text-align:right;margin-top:10px;animation:pp 1s ease-in-out infinite alternate}
+
+/* ENDING */
+.ends{display:none;position:fixed;inset:0;z-index:850;flex-direction:column;
+  align-items:center;justify-content:center;gap:18px;text-align:center;padding:30px;
+  background:radial-gradient(ellipse at 50% 40%,#1a1430,#050208);animation:cf .6s ease}
+.ends.show{display:flex}
+.endt{font-size:30px;font-weight:900;letter-spacing:3px;
+  background:linear-gradient(135deg,#f5c842,#fff 40%,#a855f7 70%,#00d4ff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.ends .sub{color:var(--g3);font-size:13px;line-height:1.9}
+.ends .em{font-size:64px;filter:drop-shadow(0 0 24px rgba(245,200,66,.6));animation:ef 4s ease-in-out infinite}
 </style>
 </head>
 <body>
@@ -259,6 +296,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
     <canvas id="mc"></canvas>
     <div class="minimap"><canvas id="mc2" width="80" height="80"></canvas></div>
     <div class="ll" id="ll">🏰 はじまりの村 エルスタ</div>
+    <div class="sban" id="sban" onclick="openM('qum')" style="display:none"></div>
     <div class="wi"><div class="wb" id="wt">🌙 夜</div><div class="wb" id="ww">☀️ 晴れ</div></div>
     <div class="dpad">
       <div class="dp e"></div><div class="dp" data-dir="up">▲</div><div class="dp e"></div>
@@ -360,6 +398,24 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 
 <div class="toast" id="toast"></div>
 
+<!-- CUTSCENE -->
+<div class="cut" id="cut" onclick="cutNext()">
+  <div class="cutbox">
+    <div class="cutface" id="cutface">⚔️</div>
+    <div class="cutwho" id="cutwho"></div>
+    <div class="cuttx" id="cuttx"></div>
+    <div class="cuthint">▶ タップで進む</div>
+  </div>
+</div>
+
+<!-- ENDING -->
+<div class="ends" id="ends">
+  <div class="em">🌟</div>
+  <div class="endt">CHRONICLE OF ETARNIA</div>
+  <div class="sub" id="endsub"></div>
+  <button class="t-btn" style="padding:12px 32px;font-size:14px" onclick="document.getElementById('ends').classList.remove('show')">▶ 冒険を続ける</button>
+</div>
+
 <script>
 const HERO_MAP_IMG=new Image();
 HERO_MAP_IMG.src="assets/hero_map.png";
@@ -438,7 +494,147 @@ const G={
   ],
   visited:new Set(),
   lastNpc:null,
+  story:{idx:0,frags:0,goblins:0,introShown:[],ending:false},
 };
+
+// ══════════ メインストーリー ══════════
+const STORY_TITLE=['プロローグ','第一章 森の囁き','第二章 銀嶺の試練','第三章 深淵の主','終章 神殿の決戦','物語クリア'];
+const STORY_OBJ=[
+  '東の森へ向かい、異変を調べよ',
+  '森のゴブリンを3体倒せ',
+  '魔物と戦い Lv6 まで力をつけよ',
+  '暗黒の洞窟へ入り「洞窟の主」を討て',
+  '古の神殿へ行き「滅びの竜」を倒せ',
+  'すべての星辰のかけらは輝きを取り戻した',
+];
+const STORY_INTRO=[
+  [ // 0 プロローグ
+    {face:'⚔️',who:'',text:'――星辰暦999年。世界エターニアを照らす「星辰の女神」の輝きが、少しずつ翳り始めていた。'},
+    {img:'gaston',who:'村長 ガストン',text:'アルシアよ、よく聞いてくれ。近頃、森や山に魔物が溢れ出しておる。女神の封印が緩んでいる証だ。'},
+    {img:'gaston',who:'村長 ガストン',text:'女神の神託があった。「星辰のかけらを集めし者よ、神殿にて滅びの竜を討て」…とな。お前にしか託せぬ。'},
+    {face:'🧙',who:'アルシア',text:'私が…。わかりました。女神の加護を受けたこの剣に懸けて、世界を救ってみせます。'},
+    {face:'🌲',who:'',text:'【目的】まずは東の森へ向かい、異変を調べよう。'},
+  ],
+  [ // 1 森
+    {img:'sage',who:'森の賢者',text:'よく来たな、星辰の担い手よ。この森の奥に、最初の「星辰のかけら」が眠っている。'},
+    {img:'sage',who:'森の賢者',text:'だが今は魔物――とりわけゴブリンどもが守りを固めておる。奴らを退ければ、かけらは姿を現すだろう。'},
+    {face:'⚔️',who:'',text:'【目的】森でゴブリンを3体倒せ。'},
+  ],
+  [ // 2 銀嶺
+    {face:'🏔️',who:'',text:'― 第二章 銀嶺の試練 ―'},
+    {face:'🧙',who:'アルシア',text:'銀嶺山脈…身を切る寒さ。でも、ここで強くならなければ、この先には進めない。'},
+    {face:'⚔️',who:'',text:'【目的】魔物と戦い、Lv6 まで力をつけよ。'},
+  ],
+  [ // 3 洞窟
+    {face:'🕳️',who:'',text:'― 第三章 深淵の主 ―'},
+    {img:'ragan',who:'傭兵 ラガン',text:'洞窟の主か…俺でも勝てなかった相手だ。だが今のお前なら――いや、お前にしか倒せん。頼んだぞ。'},
+    {face:'⚔️',who:'',text:'【目的】暗黒の洞窟に入り、洞窟の主を討て。'},
+  ],
+  [ // 4 神殿
+    {face:'⛩️',who:'',text:'― 終章 神殿の決戦 ―'},
+    {face:'🧙',who:'アルシア',text:'三つのかけらが導く先――古の神殿。ここで、すべてが決まる。'},
+    {face:'⚔️',who:'',text:'【目的】古の神殿へ行き「滅びの竜」と対決せよ。'},
+  ],
+];
+const STORY_OUTRO=[
+  null, // 0
+  [ // 1 → frag1
+    {face:'✨',who:'',text:'魔物が退き、淡い光が宙に結晶した。――星辰のかけら(1/3) を手に入れた！'},
+    {img:'sage',who:'森の賢者',text:'見事だ。次は南、銀嶺山脈へ。凍てつく試練がお前を待っている。力をつけて挑むのだ。'},
+  ],
+  [ // 2 → frag2
+    {face:'✨',who:'',text:'試練を越えた者の前に、二つ目の光が現れた。――星辰のかけら(2/3)！'},
+    {img:'sage',who:'森の賢者',text:'力強くなったな。最後のかけらは「暗黒の洞窟」の主が抱えている。心して挑め。'},
+  ],
+  [ // 3 → frag3
+    {face:'✨',who:'',text:'主の亡骸から、三つ目のかけらが零れ落ちた。――星辰のかけら(3/3) 揃った！'},
+    {img:'gaston',who:'村長 ガストン',text:'かけらが揃ったか…！　ならば急ぐのだ、アルシア。古の神殿へ。封印が完全に解ける前に。'},
+  ],
+];
+const STORY_ENDING=[
+  {face:'🐉',who:'',text:'滅びの竜は断末魔の咆哮を上げ、光の粒となって消えていった。'},
+  {face:'🌟',who:'',text:'三つの星辰のかけらが天高く昇り、女神の輝きが再びエターニアを満たした。'},
+  {img:'gaston',who:'村長 ガストン',text:'やったな、アルシア！　お前は世界を救った、真の英雄だ。'},
+  {face:'🧙',who:'アルシア',text:'…まだ、旅は終わらない。世界はこんなに広いんだから。'},
+];
+
+let _cut=null;
+function showCutscene(scenes,onDone){
+  if(!scenes||!scenes.length){if(onDone)onDone();return;}
+  _cut={scenes,i:0,onDone};
+  document.getElementById('cut').classList.add('show');
+  renderCutLine();
+}
+function renderCutLine(){
+  const s=_cut.scenes[_cut.i];
+  const face=document.getElementById('cutface');
+  const im=s.img&&NPC_IMGS[s.img];
+  if(im){face.innerHTML=`<img src="${im.src}">`;}
+  else{face.textContent=s.face||'⚔️';}
+  document.getElementById('cutwho').textContent=s.who||'';
+  document.getElementById('cuttx').textContent=s.text;
+}
+function cutNext(){
+  if(!_cut) return;
+  _cut.i++;
+  if(_cut.i>=_cut.scenes.length){
+    document.getElementById('cut').classList.remove('show');
+    const cb=_cut.onDone;_cut=null;if(cb)cb();
+  } else renderCutLine();
+}
+
+function updateStoryUI(){
+  const st=G.story,el=document.getElementById('sban');
+  if(!el) return;
+  el.style.display='block';
+  if(st.idx>=5){el.innerHTML='★ 物語クリア！ 星辰のかけら 3/3 ✨';return;}
+  el.innerHTML=`📖 <b>${STORY_TITLE[st.idx]}</b> ｜ ${STORY_OBJ[st.idx]} ｜ ✨${st.frags}/3`;
+}
+
+// 章を進める（アウトロ→かけら→次章イントロ）
+function storyAdvance(){
+  const i=G.story.idx;
+  const out=STORY_OUTRO[i];
+  G.story.idx=i+1;
+  if(out){G.story.frags++;}
+  const showNext=()=>{
+    const ni=G.story.idx;
+    if(ni<STORY_INTRO.length && !G.story.introShown[ni]){
+      G.story.introShown[ni]=true;
+      showCutscene(STORY_INTRO[ni],()=>{updateStoryUI();saveGame(true);pumpStory();});
+    } else {updateStoryUI();saveGame(true);pumpStory();}
+  };
+  if(out){showCutscene(out,showNext);} else {showNext();}
+}
+
+// レベル等で自動的に満たされる達成をチェック
+function pumpStory(){
+  if(_cut) return;
+  if(G.story.idx===2 && G.p.lv>=6){ storyAdvance(); }
+}
+
+// イベント通知
+function storyOnZone(name){
+  if(_cut) return;
+  if(G.story.idx===0 && name==='🌲 エルスタの森'){ storyAdvance(); }
+}
+function storyOnKill(name){
+  const st=G.story;
+  if(st.idx===1 && name==='ゴブリン'){
+    st.goblins++; updateStoryUI();
+    if(st.goblins>=3){ storyAdvance(); }
+  } else if(st.idx===3 && name==='洞窟の主'){
+    storyAdvance();
+  }
+}
+function doEnding(){
+  G.story.idx=5;G.story.ending=true;
+  showCutscene(STORY_ENDING,()=>{
+    document.getElementById('endsub').innerHTML='世界エターニアに、再び光が満ちた。<br>あなたは滅びの竜を討ち、世界を救った。<br><br>― 完 ―<br>遊んでくれて、ありがとう！';
+    document.getElementById('ends').classList.add('show');
+    updateStoryUI();saveGame(true);
+  });
+}
 
 const MS=40,TS=36;
 const MAP=[];
@@ -705,6 +901,7 @@ function updateLL(){
   if(el.textContent!==name){el.textContent=name;G.visited.add(name);
     const q4=G.quests.find(q=>q.id==='q4');
     if(q4&&!q4.claimed){q4.prog=Math.min(q4.goal,G.visited.size);checkQuestDone(q4);}
+    storyOnZone(name);
   }
 }
 
@@ -973,8 +1170,16 @@ function renderContent(b){
       <div class="innbtn" style="border-color:var(--red);color:var(--red)" onclick="enterDungeon()">💀 深部に進む<br><small style="font-size:10px;font-weight:400">ボス戦が待ち受ける</small></div>`;return;
   }
   if(b.type==='temple'){
-    el.innerHTML=`<div class="ininf" style="margin-bottom:12px">古の神殿。祈れば加護が得られると言われている。</div>
-      <div class="innbtn" onclick="templeBlessing()">🙏 祈りを捧げる（100G）<br><small style="font-size:10px">ランダムなステータス強化</small></div>`;return;
+    let html=`<div class="ininf" style="margin-bottom:12px">古の神殿。祈れば加護が得られると言われている。</div>
+      <div class="innbtn" onclick="templeBlessing()">🙏 祈りを捧げる（100G）<br><small style="font-size:10px">ランダムなステータス強化</small></div>`;
+    if(G.story.idx===4){
+      html+=`<div class="innbtn" style="border-color:var(--red);color:var(--red);margin-top:12px" onclick="triggerFinalBoss()">🐉 滅びの竜と対決する<br><small style="font-size:10px">星辰のかけら 3/3 ― 最終決戦</small></div>`;
+    } else if(G.story.idx>=5){
+      html+=`<div class="ininf" style="margin-top:14px;color:var(--gold)">★ あなたは滅びの竜を討ち、世界を救った英雄だ。</div>`;
+    } else {
+      html+=`<div class="ininf" style="margin-top:14px;color:var(--m2)">…まだ三つの星辰のかけらが揃っていないようだ。(${G.story.frags}/3)</div>`;
+    }
+    el.innerHTML=html;return;
   }
   if(b.type==='tavern'){
     el.innerHTML=`<div class="ininf" style="text-align:left;margin-bottom:12px">情報を集めよう。消耗品も揃っている。</div>
@@ -1080,6 +1285,17 @@ function triggerBattle(boss=false){
       --d:${3+Math.random()*4}s;--dl:${Math.random()*3}s`;
     bg.appendChild(d);
   }
+}
+
+function triggerFinalBoss(){
+  if(G.inIndoor) exitBuilding();
+  const base={name:'滅びの竜 ヴァルガ',img:'e_dragon',icon:'🐉',lv:15,mhp:1500,atk:90,def:35,xp:5000,gold:5000,boss:true};
+  G.enemy={...base,hp:base.mhp,status:[],final:true};
+  G.inBattle=true;G.myTurn=true;G.buffs={};
+  updateBUI();setLog('滅びの竜ヴァルガが立ちはだかる！世界の命運は、お前に懸かっている！');showScreen('bs');
+  const bg=document.getElementById('bbg');bg.innerHTML='';
+  for(let i=0;i<12;i++){const d=document.createElement('div');d.className='bp';const sz=Math.random()*70+20;
+    d.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;background:radial-gradient(circle,rgba(232,74,74,.22),transparent);--d:${3+Math.random()*4}s;--dl:${Math.random()*3}s`;bg.appendChild(d);}
 }
 
 function updateBUI(){
@@ -1248,7 +1464,10 @@ function battleWin(){
   const qm={'ゴブリン':'q2','洞窟の主':'q3','スケルトン':'q5','オーク':'q6','暗黒騎士':'q7','ドラゴン':'q8'};
   if(qm[e.name]) bumpQuest(qm[e.name]);
   setLog(`${e.name}を倒した！ <span class="hl">XP+${e.xp}</span> <span class="hl">Gold+${e.gold}💰</span>`);
-  setTimeout(()=>{showScreen('gs');updateUI();renderMap();saveGame();},1300);
+  const isFinal=e.final;
+  setTimeout(()=>{showScreen('gs');updateUI();renderMap();saveGame();
+    if(isFinal){ doEnding(); } else { storyOnKill(e.name); pumpStory(); }
+  },1300);
 }
 
 function battleLose(){
@@ -1308,7 +1527,13 @@ function fillItems(){
       <div class="itq">×${i.qty}</div></div>`).join('');
 }
 function fillQuests(){
-  document.getElementById('qubd').innerHTML=G.quests.map(q=>`
+  const st=G.story;
+  const storyHtml=`<div class="qc aq" style="border-color:var(--purple)">
+    <div class="qt" style="color:var(--purple)">📖 メインストーリー：${STORY_TITLE[st.idx]}</div>
+    <div class="qd">${st.idx>=5?'すべての星辰のかけらは輝きを取り戻した。世界は救われた。':'▶ '+STORY_OBJ[st.idx]}</div>
+    <div class="qr" style="color:var(--gold)">✨ 星辰のかけら ${st.frags}/3</div>
+  </div><div class="estt" style="margin:4px 0 8px">― サブクエスト ―</div>`;
+  document.getElementById('qubd').innerHTML=storyHtml+G.quests.map(q=>`
     <div class="qc ${q.done?'dq':'aq'}">
       <div class="qt">${q.done?'✅':'🔵'} ${q.title}</div><div class="qd">${q.desc}</div>
       <div class="qpw"><div class="qpf" style="width:${q.prog/q.goal*100}%"></div></div>
@@ -1351,8 +1576,8 @@ function toast(msg){
   clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2400);
 }
 
-function saveGame(){
-  try{localStorage.setItem('et2sv',JSON.stringify({p:G.p,items:G.items,quests:G.quests,equip:G.equip,skills:G.skills,visited:[...G.visited]}));toast('💾 セーブした！');}catch(e){}
+function saveGame(silent){
+  try{localStorage.setItem('et2sv',JSON.stringify({p:G.p,items:G.items,quests:G.quests,equip:G.equip,skills:G.skills,visited:[...G.visited],story:G.story}));if(!silent)toast('💾 セーブした！');}catch(e){}
 }
 function loadSave(){
   try{const r=localStorage.getItem('et2sv');if(!r) return;const d=JSON.parse(r);
@@ -1362,6 +1587,7 @@ function loadSave(){
     if(d.equip)G.equip=d.equip;if(d.skills&&d.skills.length)G.skills=d.skills;
     // 特別呪文を既存セーブにも自動付与
     BONUS_SKILLS.forEach(b=>{if(!G.skills.some(s=>s.id===b.id))G.skills.push({...b});});
+    if(d.story){Object.assign(G.story,d.story);if(!Array.isArray(G.story.introShown))G.story.introShown=[];}
     if(d.visited)G.visited=new Set(d.visited);toast('📂 データを読み込んだ！');}catch(e){}
 }
 
@@ -1371,7 +1597,11 @@ function startGame(){
   loadSave();showScreen('gs');initCanvas();bindDpad();bindSwipe();updateUI();renderMap();
   document.getElementById('hero-battle-img').src=HERO_BATTLE_SRC;
   requestAnimationFrame(gameLoop);
-  toast('🗡️ クロニクル・オブ・エターニアへようこそ！');
+  updateStoryUI();
+  if(G.story.idx===0 && !G.story.introShown[0]){
+    G.story.introShown[0]=true;
+    showCutscene(STORY_INTRO[0],()=>{updateStoryUI();saveGame(true);});
+  } else { pumpStory(); }
 }
 
 // Title stars
