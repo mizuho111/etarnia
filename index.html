@@ -511,7 +511,8 @@ const G={
     {id:'anti',name:'解毒薬',icon:'🌿',desc:'毒を治す',qty:2,t:'cure',v:0},
     {id:'bomb',name:'ファイアボム',icon:'💣',desc:'敵に60ダメージ',qty:1,t:'dmg',v:60},
   ],
-  equip:{weapon:{name:'鉄の剣',icon:'🗡️',stat:'ATK+8'},armor:{name:'革の鎧',icon:'🛡️',stat:'DEF+5'},acc:{name:'魔力の指輪',icon:'💍',stat:'MAG+6'}},
+  equip:{weapon:{id:'iron',name:'鉄の剣',icon:'🗡️',stat:'標準装備',atk:0,mag:0},armor:{name:'革の鎧',icon:'🛡️',stat:'DEF+5'},acc:{name:'魔力の指輪',icon:'💍',stat:'MAG+6'}},
+  ownedWeapons:[],
   skills:[
     {id:'slash',name:'魔法斬り',icon:'🗡️',desc:'魔力乗せ斬撃',mp:8,pow:40,t:'atk'},
     {id:'fire',name:'ファイアボール',icon:'🔥',desc:'炎の球',mp:12,pow:55,t:'atk'},
@@ -686,6 +687,7 @@ const BUILDINGS=[
   {x:8,y:14,icon:'',name:'防具屋 アーマーズ',sub:'身を守れ',type:'armor',r:1.6},
   {x:11,y:5,icon:'',name:'魔法ギルド',sub:'スキルを磨け',type:'guild',r:1.8},
   {x:7,y:11,icon:'',name:'道具屋 マルクの露店',sub:'冒険の必需品',type:'tavern',r:1.6},
+  {x:13,y:8,icon:'🎰',name:'星辰のガチャ堂',sub:'運命の武器を引け',type:'gacha',r:1.5},
   // 村外（各エリア背景の上）
   {x:26,y:8,icon:'🌲',name:'森の隠れ家',sub:'旅人の休憩所',type:'inn',r:1.4},
   {x:30,y:30,icon:'⛩️',name:'古の神殿',sub:'謎が眠る場所',type:'temple',r:1.6},
@@ -951,7 +953,7 @@ function checkNearby(){
   const ep=document.getElementById('ep');
   if(nb){
     ep.style.display='block';ep.dataset.bid=BUILDINGS.indexOf(nb);
-    const ti={inn:'🛏️',weapon:'⚔️',armor:'🛡️',guild:'✨',tavern:'🍺',temple:'⛩️',dungeon:'💀'}[nb.type]||'🚪';
+    const ti={inn:'🛏️',weapon:'⚔️',armor:'🛡️',guild:'✨',tavern:'🍺',temple:'⛩️',dungeon:'💀',gacha:'🎰'}[nb.type]||'🚪';
     ep.innerHTML=`${ti} ${nb.name} に入る`;
   }
   else ep.style.display='none';
@@ -1175,6 +1177,14 @@ function drawIndoor(b){
       ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
       ctx.font='40px serif';ctx.textAlign='center';ctx.fillText('⛩️',W/2,H*.46);
     },
+    gacha:()=>{
+      ctx.fillStyle='#0a0814';ctx.fillRect(0,0,W,H);
+      const g=ctx.createRadialGradient(W/2,H/2,5,W/2,H/2,95);
+      g.addColorStop(0,'rgba(245,200,66,.35)');g.addColorStop(.5,'rgba(168,85,247,.22)');g.addColorStop(1,'transparent');
+      ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+      ctx.font='44px serif';ctx.textAlign='center';ctx.fillText('🎰',W/2,H/2+12);
+      ctx.font='22px serif';ctx.fillText('✨',W/2-78,H/2-6);ctx.fillText('✨',W/2+78,H/2-6);
+    },
   };
   (scenes[b.type]||scenes.tavern)();
 }
@@ -1222,6 +1232,15 @@ function renderContent(b){
     }
     el.innerHTML=html;return;
   }
+  if(b.type==='gacha'){
+    el.innerHTML=`<div class="ininf" style="text-align:left;margin-bottom:10px">星辰の力で武器を引き当てる。<b style="color:var(--gold)">最上位の武器はここでしか手に入らない。</b><br>✨確率: <span style="color:#ffd24a">UR 1%</span> / <span style="color:#a855f7">SSR 9%</span> / <span style="color:#4a8fe8">SR 32%</span> / R 58%<br>所持金: ${G.p.gold}G</div>
+      <div class="innbtn" onclick="rollGacha(1)">🎰 単発を引く（500G）</div>
+      <div class="innbtn" style="border-color:var(--gold);color:var(--gold);margin-top:10px" onclick="rollGacha(10)">🎰 10連を引く（4500G）<br><small style="font-size:10px;font-weight:400">1回分お得</small></div>
+      <div id="gresult" style="margin-top:12px"></div>
+      <div class="estt" style="margin:16px 0 8px">所持武器（タップで装備）</div>
+      <div id="gowned"></div>`;
+    renderOwnedWeapons(); return;
+  }
   if(b.type==='tavern'){
     el.innerHTML=`<div class="ininf" style="text-align:left;margin-bottom:12px">情報を集めよう。消耗品も揃っている。</div>
       <div class="slist">
@@ -1239,13 +1258,68 @@ function restInn(){
   G.p.gold-=50;G.p.hp=G.p.mhp;G.p.mp=G.p.mmp;
   toast('💤 ぐっすり眠れた！HP・MP全回復！');updateUI();renderContent(G.curB);
 }
+// ── 武器の装備（付け替えでステータスを正しく入れ替え）──
+function equipWeapon(w){
+  if(!G.ownedWeapons) G.ownedWeapons=[];
+  const cur=G.equip.weapon||{};
+  G.p.atk-=(cur.atk||0); G.p.mag-=(cur.mag||0);
+  G.equip.weapon={id:w.id,name:w.name,icon:w.icon,stat:`ATK+${w.atk||0}${w.mag?` MAG+${w.mag}`:''}`,atk:w.atk||0,mag:w.mag||0};
+  G.p.atk+=w.atk||0; G.p.mag+=w.mag||0;
+  if(w.id && !G.ownedWeapons.some(o=>o.id===w.id)) G.ownedWeapons.push({id:w.id,name:w.name,icon:w.icon,atk:w.atk||0,mag:w.mag||0,r:w.r||'R'});
+  updateUI();
+}
+function wScore(w){return (w?.atk||0)+(w?.mag||0);}
 function buyWeapon(i){
   const el=document.getElementById('icont'),s=el._sw?.[i];
   if(!s||G.p.gold<s.pr){toast(G.p.gold<(s?.pr||0)?'ゴールドが足りない！':'エラー');return;}
-  G.p.gold-=s.pr;G.equip.weapon={name:s.n,icon:s.ico,stat:s.d};
-  if(s.sa.atk)G.p.atk+=s.sa.atk;if(s.sa.mag)G.p.mag+=s.sa.mag;
+  G.p.gold-=s.pr;
+  equipWeapon({id:'shop_'+s.n,name:s.n,icon:s.ico,atk:s.sa.atk||0,mag:s.sa.mag||0,r:'SR'});
   toast(`⚔️ ${s.n}を購入！装備した。`);updateUI();
 }
+
+// ── ガチャ（最上位武器はここでしか手に入らない）──
+const RARITY={UR:{c:'#ffd24a'},SSR:{c:'#a855f7'},SR:{c:'#4a8fe8'},R:{c:'#8a9ab8'}};
+const GACHA=[
+  {wt:40, r:'R',  kind:'item', id:'pot'},
+  {wt:18, r:'R',  kind:'gold', amount:300},
+  {wt:22, r:'SR', kind:'weapon', w:{id:'dslayer', name:'ドラゴンスレイヤー',  icon:'🗡️',atk:42,mag:0, r:'SR'}},
+  {wt:10, r:'SR', kind:'weapon', w:{id:'sagestaff',name:'賢者の杖',          icon:'🪄',atk:12,mag:48,r:'SR'}},
+  {wt:6,  r:'SSR',kind:'weapon', w:{id:'mjolnir',  name:'雷神剣ミョルニル',    icon:'⚡',atk:62,mag:28,r:'SSR'}},
+  {wt:3,  r:'SSR',kind:'weapon', w:{id:'frost',    name:'氷結の刃フロストモーン',icon:'❄️',atk:58,mag:38,r:'SSR'}},
+  {wt:0.8,r:'UR', kind:'weapon', w:{id:'ragnarok', name:'神殺しの剣ラグナロク',  icon:'🌟',atk:95,mag:55,r:'UR'}},
+  {wt:0.2,r:'UR', kind:'weapon', w:{id:'eternia',  name:'星辰剣エターニア',      icon:'✨',atk:80,mag:80,r:'UR'}},
+];
+const GACHA_TOTAL=GACHA.reduce((a,g)=>a+g.wt,0);
+function gachaPick(){ let x=Math.random()*GACHA_TOTAL; for(const g of GACHA){ if((x-=g.wt)<0) return g; } return GACHA[0]; }
+function applyGachaResult(g){
+  if(g.kind==='gold'){ G.p.gold+=g.amount; return {r:g.r,icon:'💰',name:g.amount+'G',note:''}; }
+  if(g.kind==='item'){ const d=ITEM_DEFS[g.id]; let it=G.items.find(i=>i.id===g.id); if(!it&&d){it={...d,qty:0};G.items.push(it);} if(it)it.qty++; return {r:g.r,icon:d?d.icon:'🎁',name:d?d.name:'アイテム',note:''}; }
+  const w=g.w;
+  if(G.ownedWeapons.some(o=>o.id===w.id)){ G.p.gold+=400; return {r:w.r,icon:w.icon,name:w.name,note:'（重複→400G）'}; }
+  if(wScore(w)>wScore(G.equip.weapon)){ equipWeapon(w); return {r:w.r,icon:w.icon,name:w.name,note:'★装備した！'}; }
+  G.ownedWeapons.push({id:w.id,name:w.name,icon:w.icon,atk:w.atk,mag:w.mag,r:w.r});
+  return {r:w.r,icon:w.icon,name:w.name,note:'入手（所持武器へ）'};
+}
+function rollGacha(n){
+  const cost=n===10?4500:500;
+  if(G.p.gold<cost){ toast('ゴールドが足りない！'); return; }
+  G.p.gold-=cost;
+  const results=[]; for(let i=0;i<n;i++) results.push(applyGachaResult(gachaPick()));
+  if(results.some(x=>x.r==='UR'||x.r==='SSR')) explosionFx();
+  const html=results.map(x=>{const c=RARITY[x.r].c;return `<div class="si" style="border-color:${c}"><div class="siico">${x.icon}</div><div class="sii"><div class="sin" style="color:${c}">[${x.r}] ${x.name}</div><div class="sid">${x.note||''}</div></div></div>`;}).join('');
+  document.getElementById('gresult').innerHTML=`<div class="estt" style="margin:8px 0 8px">🎉 結果</div><div class="slist">${html}</div>`;
+  toast(n===10?'🎰 10連を引いた！':'🎰 ガチャを引いた！');
+  updateUI(); renderOwnedWeapons(); saveGame(true);
+}
+function renderOwnedWeapons(){
+  const el=document.getElementById('gowned'); if(!el) return;
+  const cur=G.equip.weapon||{};
+  el.innerHTML=(G.ownedWeapons&&G.ownedWeapons.length?G.ownedWeapons:[]).map((w,i)=>{
+    const c=RARITY[w.r||'R'].c, eq=(cur.id&&cur.id===w.id)||cur.name===w.name;
+    return `<div class="si" onclick="equipOwned(${i})" style="border-color:${eq?'var(--gold)':'var(--b1)'}"><div class="siico">${w.icon}</div><div class="sii"><div class="sin" style="color:${c}">[${w.r||'R'}] ${w.name}</div><div class="sid">ATK+${w.atk||0}${w.mag?` MAG+${w.mag}`:''}</div></div><div class="sip">${eq?'装備中':'装備'}</div></div>`;
+  }).join('')||'<div class="ininf">まだ武器が無い。ガチャを引こう！</div>';
+}
+function equipOwned(i){ const w=G.ownedWeapons[i]; if(!w) return; equipWeapon(w); toast(`⚔️ ${w.name}を装備した！`); renderOwnedWeapons(); }
 function applyStats(sa){
   if(sa.atk)G.p.atk+=sa.atk;if(sa.def)G.p.def+=sa.def;if(sa.mag)G.p.mag+=sa.mag;if(sa.spd)G.p.spd+=sa.spd;
   if(sa.mhp){G.p.mhp+=sa.mhp;G.p.hp+=sa.mhp;}if(sa.mmp){G.p.mmp+=sa.mmp;G.p.mp+=sa.mmp;}
@@ -1734,7 +1808,7 @@ function toast(msg){
 }
 
 function saveGame(silent){
-  try{localStorage.setItem('et2sv',JSON.stringify({p:G.p,items:G.items,quests:G.quests,equip:G.equip,skills:G.skills,visited:[...G.visited],story:G.story}));if(!silent)toast('💾 セーブした！');}catch(e){}
+  try{localStorage.setItem('et2sv',JSON.stringify({p:G.p,items:G.items,quests:G.quests,equip:G.equip,skills:G.skills,visited:[...G.visited],story:G.story,ownedWeapons:G.ownedWeapons}));if(!silent)toast('💾 セーブした！');}catch(e){}
 }
 function loadSave(){
   try{const r=localStorage.getItem('et2sv');if(!r) return;const d=JSON.parse(r);
@@ -1745,13 +1819,17 @@ function loadSave(){
     // 特別呪文を既存セーブにも自動付与
     BONUS_SKILLS.forEach(b=>{if(!G.skills.some(s=>s.id===b.id))G.skills.push({...b});});
     if(d.story){Object.assign(G.story,d.story);if(!Array.isArray(G.story.introShown))G.story.introShown=[];}
+    if(Array.isArray(d.ownedWeapons))G.ownedWeapons=d.ownedWeapons;
     if(d.visited)G.visited=new Set(d.visited);toast('📂 データを読み込んだ！');}catch(e){}
 }
 
 function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
 
 function startGame(){
-  loadSave();showScreen('gs');initCanvas();bindDpad();bindSwipe();updateUI();renderMap();
+  loadSave();
+  if(!G.ownedWeapons) G.ownedWeapons=[];
+  if(!G.ownedWeapons.length){ const w=G.equip.weapon||{}; G.ownedWeapons.push({id:w.id||'iron',name:w.name||'鉄の剣',icon:w.icon||'🗡️',atk:w.atk||0,mag:w.mag||0,r:'R'}); }
+  showScreen('gs');initCanvas();bindDpad();bindSwipe();updateUI();renderMap();
   document.getElementById('hero-battle-img').src=HERO_BATTLE_SRC;
   requestAnimationFrame(gameLoop);
   updateStoryUI();
