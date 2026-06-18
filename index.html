@@ -266,6 +266,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   -webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .ends .sub{color:var(--g3);font-size:13px;line-height:1.9}
 .ends .em{font-size:64px;filter:drop-shadow(0 0 24px rgba(245,200,66,.6));animation:ef 4s ease-in-out infinite}
+
+/* EXPLOSION FX */
+.boom{position:fixed;inset:0;z-index:650;pointer-events:none;
+  background:radial-gradient(circle at 60% 42%,rgba(255,240,180,.98),rgba(255,180,60,.85) 30%,rgba(255,80,20,.6) 55%,rgba(180,20,0,.25) 72%,transparent 85%);
+  animation:boomA .75s ease-out forwards}
+@keyframes boomA{0%{opacity:0;transform:scale(.15)}12%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.35)}}
+@keyframes shake{0%,100%{transform:translate(0,0)}15%{transform:translate(-9px,5px)}30%{transform:translate(9px,-5px)}45%{transform:translate(-7px,-5px)}60%{transform:translate(7px,5px)}75%{transform:translate(-4px,3px)}}
 </style>
 </head>
 <body>
@@ -459,6 +466,7 @@ const ENEMY_IMGS={e_bat:ENEMY_E_BAT,e_goblin:ENEMY_E_GOBLIN,e_skeleton:ENEMY_E_S
 const BONUS_SKILLS=[
   {id:'puruputen',name:'パルプンテ',icon:'🌀',desc:'何が起こるか分からない…',mp:15,pow:0,t:'random'},
   {id:'megante',name:'メガンテ',icon:'💥',desc:'自爆して敵に致命の一撃(HP1になる)',mp:5,pow:0,t:'sacrifice'},
+  {id:'explosion',name:'エクスプロージョン',icon:'🌋',desc:'全魔力の大爆発！撃つと魔力切れで動けなくなる',mp:40,pow:0,t:'explosion'},
 ];
 
 const G={
@@ -1390,6 +1398,12 @@ function useBSk(id){
     if(e.boss){const dmg=Math.floor(e.mhp*.5)+p.mag*2;e.hp=Math.max(0,e.hp-dmg);popDmg(dmg,'#ff3030',false);setLog(`💥 メガンテ！アルシアは命を懸けた！${e.name}に<span class="hl">${dmg}</span>の特大ダメージ！`);}
     else{e.hp=0;popDmg('9999','#ff3030',false);setLog(`💥 メガンテ！アルシアは自爆し、${e.name}を道連れに葬り去った！`);}
     p.hp=1;popDmg('HP1','#e84a4a',true);
+  } else if(sk.t==='explosion'){
+    // エクスプロージョン：全魔力の超火力。撃った後は魔力切れで動けない
+    const dmg=350+p.mag*3-Math.floor(e.def*.2);
+    e.hp=Math.max(0,e.hp-dmg); popDmg(dmg,'#ff5500',false);
+    p.mp=0; G.buffs.collapse=1; explosionFx();
+    setLog(`🌋 <span class="hl">エクスプロージョン！！</span> 全魔力を解き放つ大爆発が${e.name}を飲み込んだ！<span class="hl">${dmg}</span>の超ダメージ！`);
   } else {
     const dmg=Math.max(1,sk.pow+Math.floor(p.mag*.6)-Math.floor(e.def*.3)+Math.floor(Math.random()*12));
     e.hp=Math.max(0,e.hp-dmg);
@@ -1448,7 +1462,19 @@ function enemyTurn(){
   setLog(`${e.name}のこうげき！アルシアに<span class="hl">${dmg}</span>ダメージ！`);
   popDmg(dmg,'#e84a4a',true);updateBUI();
   if(p.hp<=0){battleLose();return;}
+  if(G.buffs.collapse>0){
+    G.buffs.collapse--;
+    setLog('アルシアは魔力を使い果たして倒れ込み、動けない…！');
+    updateBUI(); setTimeout(enemyTurn,1000); return;
+  }
   G.myTurn=true;
+}
+
+function explosionFx(){
+  const f=document.createElement('div'); f.className='boom'; document.body.appendChild(f);
+  setTimeout(()=>f.remove(),750);
+  const bs=document.getElementById('bs');
+  if(bs){ bs.style.animation='shake .5s'; setTimeout(()=>{bs.style.animation='';},520); }
 }
 
 // ── クエスト進行・報酬 ──
