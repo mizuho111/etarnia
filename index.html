@@ -399,6 +399,12 @@ const ENEMY_S_PURPLE=new Image(); ENEMY_S_PURPLE.src="assets/slime_purple.png";
 const ENEMY_S_PINK=new Image(); ENEMY_S_PINK.src="assets/slime_pink.png";
 const ENEMY_IMGS={e_bat:ENEMY_E_BAT,e_goblin:ENEMY_E_GOBLIN,e_skeleton:ENEMY_E_SKELETON,e_orc:ENEMY_E_ORC,e_knight:ENEMY_E_KNIGHT,e_dragon:ENEMY_E_DRAGON,e_lord:ENEMY_E_LORD,s_blue:ENEMY_S_BLUE,s_green:ENEMY_S_GREEN,s_yellow:ENEMY_S_YELLOW,s_purple:ENEMY_S_PURPLE,s_pink:ENEMY_S_PINK};
 
+// 最初から全員が持っている特別呪文（既存セーブにも自動付与）
+const BONUS_SKILLS=[
+  {id:'puruputen',name:'パルプンテ',icon:'🌀',desc:'何が起こるか分からない…',mp:15,pow:0,t:'random'},
+  {id:'megante',name:'メガンテ',icon:'💥',desc:'自爆して敵に致命の一撃(HP1になる)',mp:5,pow:0,t:'sacrifice'},
+];
+
 const G={
   p:{name:'アルシア',lv:1,job:'魔法剣士',hp:100,mhp:100,mp:50,mmp:50,xp:0,xpn:100,gold:500,atk:18,def:12,mag:22,spd:15,x:10,y:10,px:10,py:10,tx:10,ty:10,face:'right'},
   enemy:null,inBattle:false,myTurn:true,inIndoor:false,curB:null,buffs:{},time:0,
@@ -418,6 +424,7 @@ const G={
     {id:'heal',name:'ヒール',icon:'💚',desc:'HPを50回復',mp:10,pow:50,t:'self'},
     {id:'shld',name:'マジックシールド',icon:'🛡️',desc:'防御1ターン強化',mp:14,pow:0,t:'buff'},
     {id:'drain',name:'ドレイン',icon:'🌑',desc:'敵HPを吸収',mp:20,pow:45,t:'drain'},
+    ...BONUS_SKILLS.map(s=>({...s})),
   ],
   quests:[
     {id:'q1',title:'スライム討伐',desc:'村周辺のスライムを5体倒せ',goal:5,prog:0,done:false,rxp:300,rgold:400,claimed:false},
@@ -1019,8 +1026,6 @@ const LEARN_SKILLS=[
   {id:'holy',name:'ホーリー',icon:'🌟',desc:'聖なる光・炎上付与',mp:24,pow:90,t:'atk',eff:'burn',cost:1200},
   {id:'regen',name:'リジェネ',icon:'💟',desc:'HPを80回復',mp:18,pow:80,t:'self',cost:900},
   {id:'meteo',name:'メテオ',icon:'☄️',desc:'隕石で特大ダメージ',mp:32,pow:120,t:'atk',cost:2000},
-  {id:'puruputen',name:'パルプンテ',icon:'🌀',desc:'何が起こるか分からない…',mp:15,pow:0,t:'random',cost:800},
-  {id:'megante',name:'メガンテ',icon:'💥',desc:'自爆して敵に致命の一撃(HP1になる)',mp:5,pow:0,t:'sacrifice',cost:1500},
 ];
 function practiceSkill(){
   if(G.p.gold<80){toast('ゴールドが足りない！');return;}
@@ -1350,6 +1355,8 @@ function loadSave(){
     // クエストは既定の最新リストを保ち、進捗のみ復元（新クエストも表示される）
     if(d.quests)d.quests.forEach(sq=>{const q=G.quests.find(x=>x.id===sq.id);if(q){q.prog=sq.prog||0;q.done=!!sq.done;q.claimed=sq.claimed??sq.done??false;}});
     if(d.equip)G.equip=d.equip;if(d.skills&&d.skills.length)G.skills=d.skills;
+    // 特別呪文を既存セーブにも自動付与
+    BONUS_SKILLS.forEach(b=>{if(!G.skills.some(s=>s.id===b.id))G.skills.push({...b});});
     if(d.visited)G.visited=new Set(d.visited);toast('📂 データを読み込んだ！');}catch(e){}
 }
 
