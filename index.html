@@ -1059,10 +1059,15 @@ function triggerBattle(boss=false){
                :                  [ENEMIES[0],ENEMIES[1],ENEMIES[2],ENEMIES[3],ENEMIES[8]];
     base={...pool[Math.floor(Math.random()*pool.length)]};
   }
-  const sc=Math.max(1,G.p.lv*.85);
-  G.enemy={...base,hp:Math.floor(base.mhp*sc),mhp:Math.floor(base.mhp*sc),
-    atk:Math.floor(base.atk*sc),def:Math.floor(base.def*sc),
-    xp:Math.floor(base.xp*sc),gold:Math.floor(base.gold*sc),status:[]};
+  // レベルに応じた敵スケール（攻撃の伸びは緩やか＝レベル上げが有利に働く）
+  const lv=G.p.lv;
+  const hpSc =1+(lv-1)*0.20;   // HPはそこそこ増える
+  const atkSc=1+(lv-1)*0.10;   // 攻撃の伸びは抑える（一撃死を防ぐ）
+  const defSc=1+(lv-1)*0.07;
+  const rwSc =1+(lv-1)*0.15;   // 経験値・ゴールドも増える
+  G.enemy={...base,hp:Math.floor(base.mhp*hpSc),mhp:Math.floor(base.mhp*hpSc),
+    atk:Math.floor(base.atk*atkSc),def:Math.floor(base.def*defSc),
+    xp:Math.floor(base.xp*rwSc),gold:Math.floor(base.gold*rwSc),status:[]};
   G.inBattle=true;G.myTurn=true;G.buffs={};
   updateBUI();setLog(`${G.enemy.name}があらわれた！`);showScreen('bs');
   // Battle bg particles
@@ -1255,9 +1260,9 @@ function battleLose(){
 function gainXP(amt){
   G.p.xp+=amt;
   while(G.p.xp>=G.p.xpn){
-    G.p.xp-=G.p.xpn;G.p.lv++;G.p.xpn=Math.floor(G.p.xpn*1.45);
-    G.p.mhp+=18;G.p.hp=G.p.mhp;G.p.mmp+=10;G.p.mp=G.p.mmp;
-    G.p.atk+=5;G.p.def+=4;G.p.mag+=6;G.p.spd+=3;showLU();
+    G.p.xp-=G.p.xpn;G.p.lv++;G.p.xpn=Math.floor(G.p.xpn*1.3);
+    G.p.mhp+=24;G.p.hp=G.p.mhp;G.p.mmp+=12;G.p.mp=G.p.mmp;
+    G.p.atk+=6;G.p.def+=5;G.p.mag+=7;G.p.spd+=3;showLU();
   }
 }
 
