@@ -355,7 +355,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="t-div"></div>
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.06.19-f</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.06.19-i</div>
 </div>
 
 <!-- GAME -->
@@ -397,6 +397,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
     <button class="nvb" onclick="openM('stm')"><span class="ni">👤</span>ステータス</button>
     <button class="nvb" onclick="openM('itm')"><span class="ni">🎒</span>アイテム</button>
     <button class="nvb" onclick="openM('qum')"><span class="ni">📜</span>クエスト</button>
+    <button class="nvb" onclick="openRecords()"><span class="ni">🏆</span>記録</button>
     <button class="nvb" onclick="saveGame()"><span class="ni">💾</span>セーブ</button>
   </div>
 </div>
@@ -465,6 +466,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 <div class="ov" id="qum" onclick="closeM('qum')"><div class="modal" onclick="event.stopPropagation()">
   <div class="mhd"><span class="mtt">📜 クエスト</span><button class="mx" onclick="closeM('qum')">✕</button></div>
   <div class="mbd" id="qubd"></div>
+</div></div>
+
+<div class="ov" id="recm" onclick="closeM('recm')"><div class="modal" onclick="event.stopPropagation()">
+  <div class="mhd"><span class="mtt">🏆 記録</span><button class="mx" onclick="closeM('recm')">✕</button></div>
+  <div class="mbd" id="recbd"></div>
 </div></div>
 
 <div class="ov" id="skm" onclick="closeM('skm')"><div class="modal" onclick="event.stopPropagation()">
@@ -554,7 +560,7 @@ const ALLY_ARCHER=new Image(); ALLY_ARCHER.src="assets/ally_archer.png";
 const ALLY_KNIGHT=new Image(); ALLY_KNIGHT.src="assets/ally_knight.png";
 const ALLY_MAGE=new Image();   ALLY_MAGE.src="assets/ally_mage.png";
 const ALLY_PRIEST=new Image(); ALLY_PRIEST.src="assets/ally_priest.png";
-const ALLY_IMGS={archer:ALLY_ARCHER,knight:ALLY_KNIGHT,mage:ALLY_MAGE,priest:ALLY_PRIEST};
+const ALLY_IMGS={archer:ALLY_ARCHER,knight:ALLY_KNIGHT,mage:ALLY_MAGE,priest:ALLY_PRIEST,drake:NPC_DRAKE,elmia:NPC_ELMIA};
 const ALLIES={
   archer:{id:'archer',name:'リーフ',  role:'弓使い',img:'archer',cost:1200,atk:24,mag:0, def:8, hp:85, kind:'phys',desc:'素早い弓で敵を狙撃する',
     lines:{start:'俺の弓、外さないぜ！',quip:['ナイスショット！','次はどいつだ？','よし、命中だ！'],win:'楽勝だったな！'}},
@@ -564,11 +570,16 @@ const ALLIES={
     lines:{start:'……闇よ、応えろ。',quip:['塵に還れ。','詠唱、完了だ。','逃がさん。'],win:'当然の結果だ。'}},
   priest:{id:'priest',name:'フィーナ',role:'僧侶',  img:'priest',cost:1600,atk:0, mag:22,def:7, hp:80, kind:'heal',desc:'HPを回復・蘇生し、時に聖光で攻撃',
     lines:{start:'みんな、無理しないで！',quip:['癒やしを！','ご無事で！','神のご加護を！'],win:'よかった、みんな無事ね。'}},
+  drake: {id:'drake', name:'ドレイク',role:'重戦士',img:'drake', cost:3000,atk:40,mag:0, def:28,hp:180,kind:'phys',desc:'海を渡る豪傑。圧倒的な膂力で前線を支える',
+    lines:{start:'よっしゃ、暴れさせてもらうぜ！',quip:['でかい一撃いくぞ！','まだまだァ！','どっせい！'],win:'ハッハ、いい運動だった！'}},
+  elmia: {id:'elmia', name:'エルミア',role:'氷結魔道士',img:'elmia',cost:2600,atk:0, mag:42,def:6, hp:75, kind:'mag', desc:'凍てつく魔法で敵を砕く村一番の魔法使い',
+    lines:{start:'凍てつきなさい。',quip:['氷の刃を！','逃がさないわ。','これでおしまい。'],win:'ふぅ、お見事でしょう？'}},
 };
 function allyMax(a){ return Math.floor(a.hp*(1+Math.min(G.p.lv,12)*0.18)); }
 function initAllyBattle(){
   G.abt={};
   (G.party||[]).forEach(id=>{ const a=ALLIES[id]; if(!a) return; const m=allyMax(a); G.abt[id]={hp:m,mhp:m,down:false}; });
+  G.pstatus={}; // プレイヤーの状態異常（毒・麻痺）をリセット
 }
 
 // ══════════ サウンド（WebAudioで合成・ファイル不要）══════════
@@ -626,22 +637,56 @@ function sfx(name){
 const NF={E2:82.41,F2:87.31,G2:98,A2:110,B2:123.47,C3:130.81,D3:146.83,E3:164.81,G3:196,A3:220,
   C4:261.63,D4:293.66,E4:329.63,F4:349.23,G4:392,A4:440,B4:493.88,C5:523.25,D5:587.33,E5:659.25,G5:783.99,A5:880};
 const BGMS={
-  field:{tempo:104,leadType:'triangle',
+  field:{tempo:104,leadType:'triangle',drum:'light',
     lead:[[NF.A4,1],[NF.C5,1],[NF.E5,2],[NF.D5,1],[NF.C5,1],[NF.A4,2],[NF.G4,1],[NF.A4,1],[NF.C5,2],[NF.E5,1],[NF.D5,1],[NF.C5,2]],
     bass:[[NF.A2,2],[NF.A2,2],[NF.F2,2],[NF.F2,2],[NF.C3,2],[NF.C3,2],[NF.G2,2],[NF.E2,2]]},
-  battle:{tempo:152,leadType:'square',
+  battle:{tempo:152,leadType:'square',drum:'full',
     lead:[[NF.E5,0.5],[NF.E5,0.5],[NF.G5,1],[NF.E5,0.5],[NF.D5,0.5],[NF.C5,1],[NF.A4,1],[NF.B4,1],[NF.C5,0.5],[NF.D5,0.5],[NF.E5,1],[NF.A4,1]],
     bass:[[NF.A2,1],[NF.A2,1],[NF.F2,1],[NF.G2,1],[NF.A2,1],[NF.A2,1],[NF.E2,1],[NF.E2,1]]},
+  boss:{tempo:172,leadType:'sawtooth',drum:'full',
+    lead:[[NF.A4,0.5],[NF.A4,0.5],[NF.C5,0.5],[NF.B4,0.5],[NF.A4,1],[NF.G4,0.5],[NF.A4,0.5],[NF.E5,1],[NF.D5,0.5],[NF.C5,0.5],[NF.B4,0.5],[NF.A4,0.5],[NF.G4,1],[NF.E4,1]],
+    bass:[[NF.A2,0.5],[NF.A2,0.5],[NF.A2,0.5],[NF.A2,0.5],[NF.F2,0.5],[NF.F2,0.5],[NF.G2,0.5],[NF.G2,0.5],[NF.E2,0.5],[NF.E2,0.5],[NF.E2,0.5],[NF.E2,0.5],[NF.A2,1]]},
+  town:{tempo:98,leadType:'triangle',drum:'soft',
+    lead:[[NF.C5,1],[NF.E5,1],[NF.G5,1],[NF.E5,1],[NF.F4,1],[NF.A4,1],[NF.C5,2],[NF.G4,1],[NF.B4,1],[NF.D5,1],[NF.B4,1],[NF.C5,2]],
+    bass:[[NF.C3,2],[NF.G2,2],[NF.F2,2],[NF.G2,2],[NF.C3,2],[NF.A2,2],[NF.G2,2],[NF.G2,2]]},
 };
+// 和音パッド（ベース音の上にルート8va＋5度＋オクターブを重ねて厚みを出す）
+function chordPad(root,dur,when,vol){
+  if(!root) return;
+  tone(root*2,            dur,'triangle',vol,      when);
+  tone(root*2*1.49831,    dur,'triangle',vol*0.75, when); // 完全5度
+  tone(root*4,            dur,'sine',    vol*0.55, when); // オクターブ上
+}
+// ドラム（キック＝低い正弦のスライド／ハイハット＝短いノイズ／スネア＝中域ノイズ）
+function drumKick(when){ tone(120,0.13,'sine',0.5,when,45); noise(0.05,0.18,when,350); }
+function drumHat(when){ noise(0.025,0.07,when,9000); }
+function drumSnare(when){ noise(0.12,0.22,when,3500); tone(180,0.08,'triangle',0.12,when); }
 function playBGM(name){
   stopBGM(); AUDIO.bgmName=name;
   if(!AUDIO.ctx||AUDIO.muted) return;
   const def=BGMS[name]; if(!def) return; const beat=60/def.tempo;
   const loop=()=>{
     if(AUDIO.bgmName!==name||AUDIO.muted||!AUDIO.ctx) return;
-    let t=0; def.lead.forEach(([f,d])=>{ if(f) tone(f,beat*d*0.9,def.leadType,0.14,t); t+=beat*d; });
-    let tb=0; def.bass.forEach(([f,d])=>{ if(f) tone(f,beat*d*0.95,'sine',0.16,tb); tb+=beat*d; });
-    AUDIO.bgmTimer=setTimeout(loop, Math.max(t,tb)*1000);
+    // メロディ：主旋律＋1オクターブ下のハモリ＋わずかにデチューンして厚みを出す
+    let t=0; def.lead.forEach(([f,d])=>{ if(f){
+      const dur=beat*d*0.9;
+      tone(f,        dur,def.leadType,0.13,t);
+      tone(f*1.002,  dur,def.leadType,0.05,t);   // デチューン重ね
+      tone(f/2,      dur,'triangle',  0.045,t);  // オクターブ下のハモリ
+    } t+=beat*d; });
+    // ベース＋和音パッド
+    let tb=0; def.bass.forEach(([f,d])=>{ if(f){ tone(f,beat*d*0.95,'sine',0.16,tb); chordPad(f,beat*d*0.95,tb,0.035); } tb+=beat*d; });
+    // ドラム：1小節分をビート単位で刻む
+    const bars=def.bass.reduce((s,[,d])=>s+d,0);
+    if(def.drum&&def.drum!=='none'){
+      for(let i=0;i<bars;i++){
+        const at=i*beat;
+        if(def.drum==='full'){ drumKick(at); if(i%2===1)drumSnare(at); drumHat(at+beat*0.5); }
+        else if(def.drum==='light'){ if(i%2===0)drumKick(at); drumHat(at+beat*0.5); }
+        else if(def.drum==='soft'){ drumHat(at+beat*0.5); }
+      }
+    }
+    AUDIO.bgmTimer=setTimeout(loop, Math.max(t,tb,bars*beat)*1000);
   };
   loop();
 }
@@ -716,10 +761,18 @@ const G={
     {id:'q6',title:'オークの砦',desc:'オークを3体倒せ',goal:3,prog:0,done:false,rxp:1100,rgold:1200,claimed:false},
     {id:'q7',title:'暗黒騎士の討伐',desc:'暗黒騎士を2体倒せ',goal:2,prog:0,done:false,rxp:1600,rgold:1800,claimed:false},
     {id:'q8',title:'竜殺しの伝説',desc:'ドラゴンを1体倒せ',goal:1,prog:0,done:false,rxp:2500,rgold:3000,claimed:false},
+    {id:'q9',title:'夜の翼',desc:'コウモリを6体倒せ',goal:6,prog:0,done:false,rxp:600,rgold:700,claimed:false},
+    {id:'q10',title:'ドラゴンハンター',desc:'ドラゴンを3体倒せ',goal:3,prog:0,done:false,rxp:4000,rgold:5000,claimed:false},
+    {id:'q11',title:'スライムの王へ',desc:'スライム系を12体倒せ',goal:12,prog:0,done:false,rxp:1500,rgold:1800,claimed:false},
+    {id:'q12',title:'砦の征服者',desc:'オークを8体倒せ',goal:8,prog:0,done:false,rxp:3000,rgold:3600,claimed:false},
   ],
+  bounty:null,
+  ach:{kills:0,bosses:0,dragons:0,arenaClears:0,goldEarned:0,unlocked:[]},
+  dex:[],
+  arena:{best:0,active:false,wave:0},
   visited:new Set(),
   lastNpc:null,
-  story:{idx:0,frags:0,goblins:0,introShown:[],ending:false,bossKills:0},
+  story:{idx:0,frags:0,goblins:0,introShown:[],ending:false,bossKills:0,trueCleared:false,landUnlocked:false},
 };
 
 // ══════════ メインストーリー ══════════
@@ -785,6 +838,23 @@ const STORY_ENDING=[
   {face:'🌟',who:'',text:'三つの星辰のかけらが天高く昇り、女神の輝きが再びエターニアを満たした。'},
   {img:'gaston',who:'村長 ガストン',text:'やったな、アルシア！　お前は世界を救った、真の英雄だ。'},
   {face:'🧙',who:'アルシア',text:'…まだ、旅は終わらない。世界はこんなに広いんだから。'},
+];
+
+// ── 真エンディング：黒幕「星辰を喰らう者」撃破後 ──
+const STORY_TRUE_INTRO=[
+  {face:'🌑',who:'',text:'幾度倒しても甦る滅びの竜――その亡骸の奥から、虚無の声が響いた。'},
+  {face:'👁️',who:'？？？',text:'おろかな器よ。竜は我が影にすぎぬ。女神の光を翳らせたのは、この我――星辰を喰らう者だ。'},
+  {img:'priest',who:'フィーナ',text:'これが…すべての元凶。アルシア様、これを断てば、本当に世界は救われます！'},
+  {face:'🧙',who:'アルシア',text:'何度甦ろうと構わない。みんなと掴んだこの光で――お前を、終わらせる！'},
+  {face:'💫',who:'',text:'【真の最終決戦】星辰を喰らう者 エクリプス、出現。'},
+];
+const STORY_TRUE_ENDING=[
+  {face:'💥',who:'',text:'星辰を喰らう者は内側から砕け、無数の星の光となって夜空に還っていった。'},
+  {face:'🌟',who:'',text:'女神の輝きは二度と翳らない。エターニアに、永遠の夜明けが訪れた。'},
+  {img:'gaston',who:'村長 ガストン',text:'…本当の意味で、世界は救われたのだな。アルシア、お前は伝説そのものだ。'},
+  {img:'drake',who:'船乗り ドレイク',text:'なあ英雄さん、海の向こうに未知の大陸があるって話、覚えてるか？　港で待ってるぜ。'},
+  {face:'🧙',who:'アルシア',text:'仲間がいれば、どんな世界へだって行ける。――さあ、次の物語へ！'},
+  {face:'🎉',who:'',text:'★ 真エンディング達成！　「未知の大陸」が解放された！'},
 ];
 
 let _cut=null;
@@ -885,6 +955,7 @@ const BUILDINGS=[
   {x:7,y:11,icon:'',name:'道具屋 マルクの露店',sub:'冒険の必需品',type:'tavern',r:1.6},
   {x:13,y:8,icon:'🎰',name:'星辰のガチャ堂',sub:'運命の武器を引け',type:'gacha',r:1.5},
   {x:12,y:11,icon:'🍻',name:'仲間の酒場',sub:'頼れる仲間を集めよ',type:'recruit',r:1.5},
+  {x:6,y:7,icon:'🏟️',name:'闘技場',sub:'無限の試練に挑め',type:'arena',r:1.5},
   // 村外（各エリア背景の上）
   {x:26,y:8,icon:'🌲',name:'森の隠れ家',sub:'旅人の休憩所',type:'inn',r:1.4},
   {x:30,y:30,icon:'⛩️',name:'古の神殿',sub:'謎が眠る場所',type:'temple',r:1.6},
@@ -917,6 +988,22 @@ const ENEMIES=[
   {name:'きいろスライム',img:'s_yellow',icon:'🟡',lv:3,mhp:65,atk:14,def:6,xp:60,gold:40},
   {name:'どくスライム',img:'s_purple',icon:'🟣',lv:4,mhp:80,atk:18,def:8,xp:80,gold:55},
   {name:'ピンクスライム',img:'s_pink',icon:'🩷',lv:3,mhp:70,atk:12,def:7,xp:65,gold:50},
+];
+
+// ── 未知の大陸（真エンディング後に解放）の強敵プール ──
+const CONTINENT_ENEMIES=[
+  {name:'深淵のドラゴン',img:'e_dragon',icon:'🐲',lv:18,mhp:700,atk:85,def:38,xp:1200,gold:1000},
+  {name:'虚無の騎士',  img:'e_knight', icon:'🗡️',lv:20,mhp:600,atk:95,def:42,xp:1400,gold:1100},
+  {name:'古の魔将',    img:'e_lord',   icon:'🔱',lv:22,mhp:900,atk:100,def:48,xp:1800,gold:1600},
+  {name:'呪いのオーク',img:'e_orc',    icon:'☠️',lv:17,mhp:550,atk:80,def:34,xp:1000,gold:900},
+];
+
+// 図鑑マスター（全モンスター一覧）
+const DEX_MASTER=[
+  ...ENEMIES.map(e=>({name:e.name,img:e.img,icon:e.icon})),
+  ...CONTINENT_ENEMIES.map(e=>({name:e.name,img:e.img,icon:e.icon})),
+  {name:'滅びの竜 ヴァルガ',img:'e_dragon',icon:'🐉'},
+  {name:'星辰を喰らう者 エクリプス',img:'e_lord',icon:'🌑'},
 ];
 
 const ZONES=[
@@ -1166,7 +1253,7 @@ function checkNearby(){
   const ep=document.getElementById('ep');
   if(nb){
     ep.style.display='block';ep.dataset.bid=BUILDINGS.indexOf(nb);
-    const ti={inn:'🛏️',weapon:'⚔️',armor:'🛡️',guild:'✨',tavern:'🍺',temple:'⛩️',dungeon:'💀',gacha:'🎰',recruit:'🍻'}[nb.type]||'🚪';
+    const ti={inn:'🛏️',weapon:'⚔️',armor:'🛡️',guild:'✨',tavern:'🍺',temple:'⛩️',dungeon:'💀',gacha:'🎰',recruit:'🍻',arena:'🏟️'}[nb.type]||'🚪';
     ep.innerHTML=`${ti} ${nb.name} に入る`;
   }
   else ep.style.display='none';
@@ -1336,8 +1423,9 @@ function enterBuilding(){
   document.getElementById('isub').textContent=b.sub;
   drawIndoor(b); renderContent(b);
   showScreen('is'); toast(`${b.icon} ${b.name}に入った`);
+  playBGM('town');
 }
-function exitBuilding(){G.inIndoor=false;G.curB=null;showScreen('gs');renderMap();}
+function exitBuilding(){G.inIndoor=false;G.curB=null;showScreen('gs');renderMap();if(!G.inBattle)playBGM('field');}
 
 function drawIndoor(b){
   const cv=document.getElementById('ic'),ctx=cv.getContext('2d'),W=cv.width,H=cv.height;
@@ -1402,6 +1490,14 @@ function drawIndoor(b){
       ctx.font='44px serif';ctx.textAlign='center';ctx.fillText('🎰',W/2,H/2+12);
       ctx.font='22px serif';ctx.fillText('✨',W/2-78,H/2-6);ctx.fillText('✨',W/2+78,H/2-6);
     },
+    arena:()=>{
+      ctx.fillStyle='#0e0a06';ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#2a1d10';ctx.fillRect(0,H*.6,W,H*.4);
+      ctx.strokeStyle='rgba(245,200,66,.5)';ctx.lineWidth=3;
+      ctx.beginPath();ctx.ellipse(W/2,H*.66,W*.42,H*.18,0,0,Math.PI*2);ctx.stroke();
+      ctx.font='44px serif';ctx.textAlign='center';ctx.fillText('🏟️',W/2,H*.4);
+      ctx.font='20px serif';ctx.fillText('⚔️',W*.3,H*.5);ctx.fillText('🛡️',W*.7,H*.5);
+    },
   };
   (scenes[b.type]||scenes.tavern)();
 }
@@ -1414,12 +1510,26 @@ function renderContent(b){
   }
   if(b.type==='weapon'){
     const shop=[{n:'鉄の剣',ico:'🗡️',d:'ATK+12',pr:200,sa:{atk:4}},{n:'ミスリルソード',ico:'⚔️',d:'ATK+22',pr:600,sa:{atk:10}},{n:'勇者の剣',ico:'🌟',d:'ATK+35 MAG+10',pr:1500,sa:{atk:17,mag:10}},{n:'竜殺しエクスカリバー',ico:'🔱',d:'ATK+55 MAG+18',pr:4000,sa:{atk:28,mag:18}}];
-    el.innerHTML='<div class="slist">'+shop.map((s,i)=>`<div class="si" onclick="buyWeapon(${i})"><div class="siico">${s.ico}</div><div class="sii"><div class="sin">${s.n}</div><div class="sid">${s.d}</div></div><div class="sip">${s.pr}G</div></div>`).join('')+'</div>';
+    const uroko=(G.items.find(i=>i.id==='uroko')||{}).qty||0;
+    el.innerHTML='<div class="slist">'+shop.map((s,i)=>`<div class="si" onclick="buyWeapon(${i})"><div class="siico">${s.ico}</div><div class="sii"><div class="sin">${s.n}</div><div class="sid">${s.d}</div></div><div class="sip">${s.pr}G</div></div>`).join('')+'</div>'
+      +(function(){
+        const w=G.equip.weapon||{}; const plus=w.plus||0;
+        const cost=500*(plus+1); const needU=plus>=5?1:0;
+        const maxed=plus>=10;
+        return `<div class="estt" style="margin:16px 0 8px">⚒️ 装備強化（+1〜+10）</div>
+        <div class="ininf" style="text-align:left;margin-bottom:8px">装備中：${w.icon||'🗡️'} <b>${w.name||'なし'}</b>（${w.stat||'-'}）</div>
+        ${maxed
+          ? '<div class="ininf" style="color:var(--gold)">★ 最大まで強化済み（+10）！</div>'
+          : `<div class="innbtn" style="border-color:#4a8fe8;color:#4af5d2" onclick="enhanceWeapon()">🔨 強化する（+${plus}→+${plus+1}）<br><small style="font-size:10px;font-weight:400">${cost}G${needU?` ＋ 竜のうろこ×${needU}`:''} ／ 攻撃+5${(w.mag>0)?' 魔力+3':''}</small></div>`}`;
+      })()
+      +`<div class="estt" style="margin:16px 0 8px">🐉 竜素材クラフト</div>
+        <div class="ininf" style="text-align:left;margin-bottom:8px">竜から得た「竜のうろこ」で神話級の武器を鍛える。<br>所持: 🐉竜のうろこ ×${uroko}</div>
+        <div class="innbtn" style="border-color:var(--gold);color:var(--gold)" onclick="craftMythic()">⚒️ 神話の竜剣を鍛える<br><small style="font-size:10px;font-weight:400">竜のうろこ×3 ＋ 5000G ／ ATK+70 MAG+40</small></div>`;
     el._sw=shop;return;
   }
   if(b.type==='armor'){
-    const shop=[{n:'革の鎧',ico:'🛡️',d:'DEF+8',pr:180,sa:{def:3}},{n:'チェインメイル',ico:'🪖',d:'DEF+18',pr:500,sa:{def:8}},{n:'ミスリル鎧',ico:'✨',d:'DEF+30',pr:1200,sa:{def:15}},{n:'竜鱗の鎧',ico:'🐲',d:'DEF+50 HP+30',pr:3500,sa:{def:25,mhp:30}}];
-    const accs=[{n:'魔力の指輪',ico:'💍',d:'MAG+6',pr:300,sa:{mag:6}},{n:'守りの護符',ico:'🧿',d:'DEF+10',pr:700,sa:{def:10}},{n:'力帯',ico:'💪',d:'ATK+12',pr:900,sa:{atk:12}},{n:'賢者の宝玉',ico:'🔮',d:'MAG+20 MP+20',pr:2500,sa:{mag:20,mmp:20}}];
+    const shop=[{n:'革の鎧',ico:'🛡️',d:'DEF+8',pr:180,sa:{def:3}},{n:'チェインメイル',ico:'🪖',d:'DEF+18',pr:500,sa:{def:8}},{n:'ミスリル鎧',ico:'✨',d:'DEF+30',pr:1200,sa:{def:15}},{n:'竜鱗の鎧',ico:'🐲',d:'DEF+50 HP+30',pr:3500,sa:{def:25,mhp:30}},{n:'神話の聖鎧',ico:'👑',d:'DEF+80 HP+80',pr:9000,sa:{def:40,mhp:80}}];
+    const accs=[{n:'魔力の指輪',ico:'💍',d:'MAG+6',pr:300,sa:{mag:6}},{n:'守りの護符',ico:'🧿',d:'DEF+10',pr:700,sa:{def:10}},{n:'力帯',ico:'💪',d:'ATK+12',pr:900,sa:{atk:12}},{n:'賢者の宝玉',ico:'🔮',d:'MAG+20 MP+20',pr:2500,sa:{mag:20,mmp:20}},{n:'星辰のお守り',ico:'🌟',d:'全能力+15',pr:8000,sa:{atk:15,def:15,mag:15,mmp:30}}];
     el.innerHTML='<div class="estt" style="margin-bottom:8px">🛡️ 防具</div><div class="slist">'+shop.map((s,i)=>`<div class="si" onclick="buyArmor(${i})"><div class="siico">${s.ico}</div><div class="sii"><div class="sin">${s.n}</div><div class="sid">${s.d}</div></div><div class="sip">${s.pr}G</div></div>`).join('')+'</div>'
       +'<div class="estt" style="margin:14px 0 8px">💍 アクセサリー</div><div class="slist">'+accs.map((s,i)=>`<div class="si" onclick="buyAcc(${i})"><div class="siico">${s.ico}</div><div class="sii"><div class="sin">${s.n}</div><div class="sid">${s.d}</div></div><div class="sip">${s.pr}G</div></div>`).join('')+'</div>';
     el._sa=shop;el._sacc=accs;return;
@@ -1435,6 +1545,10 @@ function renderContent(b){
   if(b.type==='dungeon'){
     el.innerHTML=`<div style="color:var(--red);font-size:12px;margin-bottom:12px;text-align:center">⚠️ 強敵の巣窟！万全の準備で挑め</div>
       <div class="innbtn" style="border-color:var(--red);color:var(--red)" onclick="enterDungeon()">💀 深部に進む<br><small style="font-size:10px;font-weight:400">ボス戦が待ち受ける</small></div>`;return;
+  }
+  if(b.type==='arena'){
+    el.innerHTML=`<div class="ininf" style="text-align:left;margin-bottom:10px">次々と現れる敵を倒し続ける無限の試練。<br>WAVEを進むほど敵は強く、報酬も豪華に。<b style="color:var(--gold)">5の倍数WAVEは強敵</b>が出現！<br>毎WAVEクリアでHP・MPが少し回復。逃げれば記録を残して退場できる。<br><br>🏆 最高到達：<b style="color:var(--gold)">WAVE ${G.arena.best}</b></div>
+      <div class="innbtn" style="border-color:var(--gold);color:var(--gold)" onclick="arenaStart()">🏟️ 挑戦する！<br><small style="font-size:10px;font-weight:400">WAVE 1 から開始</small></div>`;return;
   }
   if(b.type==='temple'){
     let html=`<div class="ininf" style="margin-bottom:12px">古の神殿。祈れば加護が得られると言われている。</div>
@@ -1473,13 +1587,20 @@ function renderContent(b){
     renderOwnedWeapons(); return;
   }
   if(b.type==='tavern'){
-    el.innerHTML=`<div class="ininf" style="text-align:left;margin-bottom:12px">情報を集めよう。消耗品も揃っている。</div>
+    let th=`<div class="ininf" style="text-align:left;margin-bottom:12px">情報を集めよう。消耗品も揃っている。</div>
       <div class="slist">
         <div class="si" onclick="buyConsume('pot',80)"><div class="siico">🧪</div><div class="sii"><div class="sin">ポーション</div><div class="sid">HP+50</div></div><div class="sip">80G</div></div>
         <div class="si" onclick="buyConsume('mpp',100)"><div class="siico">💧</div><div class="sii"><div class="sin">マナポーション</div><div class="sid">MP+30</div></div><div class="sip">100G</div></div>
         <div class="si" onclick="buyConsume('bomb',150)"><div class="siico">💣</div><div class="sii"><div class="sin">ファイアボム</div><div class="sid">敵60ダメ</div></div><div class="sip">150G</div></div>
         <div class="si" onclick="buyConsume('elix',600)"><div class="siico">💎</div><div class="sii"><div class="sin">エリクサー</div><div class="sid">HP・MP完全回復</div></div><div class="sip">600G</div></div>
-      </div>`;return;
+      </div>`;
+    // 港町の酒場（船乗りが集う場所）かつ真エンディング後 → 未知の大陸へ
+    if(b.name==='港町の酒場' && G.story.landUnlocked){
+      th+=`<div class="innbtn" style="border-color:#4a8fe8;color:#4af5d2;margin-top:14px" onclick="enterContinent()">⚓ 未知の大陸へ渡る<br><small style="font-size:10px;font-weight:400">真の英雄だけが挑める強敵の地・高報酬</small></div>`;
+    } else if(b.name==='港町の酒場'){
+      th+=`<div class="ininf" style="margin-top:14px;color:var(--m2)">⚓ 船乗りドレイク「未知の大陸への航路は、まだ開けないな…世界を“本当に”救った者にしか渡らせられねえ」</div>`;
+    }
+    el.innerHTML=th;return;
   }
   el.innerHTML='<div style="color:var(--muted);text-align:center;padding:20px">準備中…</div>';
 }
@@ -1506,6 +1627,37 @@ function buyWeapon(i){
   G.p.gold-=s.pr;
   equipWeapon({id:'shop_'+s.n,name:s.n,icon:s.ico,atk:s.sa.atk||0,mag:s.sa.mag||0,r:'SR'});
   toast(`⚔️ ${s.n}を購入！装備した。`);updateUI();
+}
+
+// 装備強化（+1〜+10）：装備中の武器を鍛える
+function enhanceWeapon(){
+  const w=G.equip.weapon;
+  if(!w||!w.name){toast('武器を装備していない！');return;}
+  const plus=w.plus||0;
+  if(plus>=10){toast('既に最大強化（+10）！');return;}
+  const cost=500*(plus+1), needU=plus>=5?1:0;
+  const uroko=G.items.find(i=>i.id==='uroko');
+  if(G.p.gold<cost){toast('ゴールドが足りない！');return;}
+  if(needU&&(!uroko||uroko.qty<needU)){toast('竜のうろこが足りない！（+6以降に必要）');return;}
+  G.p.gold-=cost; if(needU)uroko.qty-=needU;
+  const da=5, dm=(w.mag>0?3:0);
+  w.atk=(w.atk||0)+da; w.mag=(w.mag||0)+dm; w.plus=plus+1;
+  G.p.atk+=da; G.p.mag+=dm;
+  const base=w.name.replace(/\s*\+\d+$/,''); w.name=base+` +${w.plus}`;
+  w.stat=`ATK+${w.atk}${w.mag?` MAG+${w.mag}`:''}`;
+  sfx('rare'); toast(`🔨 強化成功！ ${w.name}（攻撃+${da}${dm?` 魔力+${dm}`:''}）`);
+  updateUI(); renderContent(G.curB);
+}
+
+// 竜素材クラフト：神話の竜剣
+function craftMythic(){
+  const it=G.items.find(i=>i.id==='uroko');
+  if(!it||it.qty<3){toast('竜のうろこが足りない！（竜を倒して集めよう）');return;}
+  if(G.p.gold<5000){toast('ゴールドが足りない！');return;}
+  it.qty-=3; G.p.gold-=5000;
+  equipWeapon({id:'mythic_ryuken',name:'神話の竜剣',icon:'🐉',atk:70,mag:40,r:'UR'});
+  sfx('rare'); toast('⚒️✨ 神話の竜剣が完成！装備した！');
+  updateUI(); renderContent(G.curB);
 }
 
 // ── ガチャ（最上位武器はここでしか手に入らない）──
@@ -1588,7 +1740,15 @@ const ITEM_DEFS={
   bomb:{id:'bomb',name:'ファイアボム',icon:'💣',desc:'敵に60ダメージ',t:'dmg',v:60},
   elix:{id:'elix',name:'エリクサー',icon:'💎',desc:'HP・MPを完全回復',t:'fullhp',v:0},
   anti:{id:'anti',name:'解毒薬',icon:'🌿',desc:'毒を治す',t:'cure',v:0},
+  uroko:{id:'uroko',name:'竜のうろこ',icon:'🐉',desc:'神話級装備の素材。竜から手に入る',t:'mat',v:0},
 };
+// アイテム/素材を入手する共通ヘルパー
+function giveItem(id,n){
+  const d=ITEM_DEFS[id]; if(!d) return;
+  let it=G.items.find(i=>i.id===id);
+  if(!it){ it={...d,qty:0}; G.items.push(it); }
+  it.qty+=(n||1);
+}
 function buyConsume(id,pr){
   if(G.p.gold<pr){toast('ゴールドが足りない！');return;}
   G.p.gold-=pr;let it=G.items.find(i=>i.id===id);
@@ -1600,6 +1760,11 @@ const LEARN_SKILLS=[
   {id:'holy',name:'ホーリー',icon:'🌟',desc:'聖なる光・炎上付与',mp:24,pow:90,t:'atk',eff:'burn',cost:1200},
   {id:'regen',name:'リジェネ',icon:'💟',desc:'HPを80回復',mp:18,pow:80,t:'self',cost:900},
   {id:'meteo',name:'メテオ',icon:'☄️',desc:'隕石で特大ダメージ',mp:32,pow:120,t:'atk',cost:2000},
+  {id:'brave',name:'ブレイブ',icon:'🔥',desc:'3ターン攻撃力1.5倍',mp:16,pow:0,t:'buffatk',cost:1000},
+  {id:'poisn',name:'ポイズンダート',icon:'☠️',desc:'毒を与える毒針',mp:14,pow:40,t:'atk',eff:'poison',cost:800},
+  {id:'healall',name:'リバイブヒール',icon:'💖',desc:'味方全員のHPを大回復',mp:28,pow:120,t:'healall',cost:1800},
+  {id:'reraise',name:'リレイズ',icon:'😇',desc:'戦闘不能時に一度だけ自動復活',mp:24,pow:0,t:'reraise',cost:2400},
+  {id:'counter',name:'カウンター',icon:'🥋',desc:'1ターン反撃態勢。受けると倍返し',mp:20,pow:0,t:'counter',cost:2200},
 ];
 function practiceSkill(){
   if(G.p.gold<80){toast('ゴールドが足りない！');return;}
@@ -1615,6 +1780,34 @@ function learnSkill(id){
   toast(`✨ ${s.name}を習得した！`);updateUI();renderContent(G.curB);
 }
 function enterDungeon(){exitBuilding();setTimeout(()=>triggerBattle(true),300);}
+function enterContinent(){exitBuilding();toast('⚓ 未知の大陸に上陸した！');setTimeout(()=>triggerContinentBattle(),400);}
+
+// ── 闘技場（無限ウェーブ）──
+function arenaStart(){
+  if(G.inIndoor) exitBuilding();
+  G.arena.active=true; G.arena.wave=1;
+  toast('🏟️ 闘技場の試練が始まる！');
+  setTimeout(()=>spawnArenaWave(),400);
+}
+function spawnArenaWave(){
+  const w=G.arena.wave;
+  const pool=[...ENEMIES.slice(0,7),...CONTINENT_ENEMIES];
+  const base={...pool[Math.floor(Math.random()*pool.length)]};
+  const isBoss=(w%5===0);
+  const sc=1+(w-1)*0.12;
+  const hp=Math.floor(base.mhp*sc*(isBoss?2.2:1));
+  G.enemy={...base,name:base.name,
+    hp:hp,mhp:hp,
+    atk:Math.floor(base.atk*sc*(isBoss?1.3:1)),def:Math.floor(base.def*sc),
+    xp:Math.floor((base.xp||50)*sc),gold:Math.floor((base.gold||30)*sc),
+    status:[],boss:isBoss,arena:true};
+  G.inBattle=true;G.myTurn=true;G.buffs={};initAllyBattle();
+  updateBUI();setLog(`⚔️ WAVE ${w}${isBoss?'（強敵！）':''}！ ${G.enemy.name} があらわれた！`);showScreen('bs');
+  playBGM(isBoss?'boss':'battle');
+  const bg=document.getElementById('bbg');bg.innerHTML='';
+  for(let i=0;i<10;i++){const d=document.createElement('div');d.className='bp';const sz=Math.random()*60+20;
+    d.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;background:radial-gradient(circle,rgba(245,200,66,.18),transparent);--d:${3+Math.random()*4}s;--dl:${Math.random()*3}s`;bg.appendChild(d);}
+}
 function templeBlessing(){
   if(G.p.gold<100){toast('ゴールドが足りない！');return;}
   G.p.gold-=100;const ss=['atk','def','mag','spd'],s=ss[Math.floor(Math.random()*ss.length)];
@@ -1644,7 +1837,7 @@ function triggerBattle(boss=false){
     xp:Math.floor(base.xp*rwSc),gold:Math.floor(base.gold*rwSc),status:[]};
   G.inBattle=true;G.myTurn=true;G.buffs={};initAllyBattle();
   updateBUI();setLog(`${G.enemy.name}があらわれた！`);showScreen('bs');
-  playBGM('battle'); if(G.party.length) setTimeout(()=>partyBanter('start'),500);
+  playBGM(G.enemy.boss?'boss':'battle'); if(G.party.length) setTimeout(()=>partyBanter('start'),500);
   // Battle bg particles
   const bg=document.getElementById('bbg');bg.innerHTML='';
   for(let i=0;i<10;i++){
@@ -1655,6 +1848,23 @@ function triggerBattle(boss=false){
       --d:${3+Math.random()*4}s;--dl:${Math.random()*3}s`;
     bg.appendChild(d);
   }
+}
+
+// ── 未知の大陸の戦闘（真エンディング後・高難度／高報酬）──
+function triggerContinentBattle(){
+  if(G.inIndoor) exitBuilding();
+  const base={...CONTINENT_ENEMIES[Math.floor(Math.random()*CONTINENT_ENEMIES.length)]};
+  // 大陸の敵はLvに応じて更に強化（頭打ちなし・やり込み向け）
+  const over=Math.max(0,G.p.lv-12), sc=1+over*0.05;
+  G.enemy={...base,hp:Math.floor(base.mhp*sc),mhp:Math.floor(base.mhp*sc),
+    atk:Math.floor(base.atk*sc),def:Math.floor(base.def*sc),
+    xp:Math.floor(base.xp*sc),gold:Math.floor(base.gold*sc),status:[]};
+  G.inBattle=true;G.myTurn=true;G.buffs={};initAllyBattle();
+  updateBUI();setLog(`未知の大陸――${G.enemy.name}が立ちはだかる！`);showScreen('bs');
+  playBGM('battle'); if(G.party.length) setTimeout(()=>partyBanter('start'),500);
+  const bg=document.getElementById('bbg');bg.innerHTML='';
+  for(let i=0;i<10;i++){const d=document.createElement('div');d.className='bp';const sz=Math.random()*60+20;
+    d.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;background:radial-gradient(circle,rgba(74,143,232,.2),transparent);--d:${3+Math.random()*4}s;--dl:${Math.random()*3}s`;bg.appendChild(d);}
 }
 
 function bossStats(n){
@@ -1674,7 +1884,7 @@ function triggerFinalBoss(){
   G.enemy={...base,hp:base.mhp,status:[],final:true};
   G.inBattle=true;G.myTurn=true;G.buffs={};initAllyBattle();
   updateBUI();setLog(n?`甦りし滅びの竜ヴァルガ＋${n}が立ちはだかる！`:'滅びの竜ヴァルガが立ちはだかる！世界の命運は、お前に懸かっている！');showScreen('bs');
-  playBGM('battle'); if(G.party.length) setTimeout(()=>partyBanter('start'),500);
+  playBGM('boss'); if(G.party.length) setTimeout(()=>partyBanter('start'),500);
   const bg=document.getElementById('bbg');bg.innerHTML='';
   for(let i=0;i<12;i++){const d=document.createElement('div');d.className='bp';const sz=Math.random()*70+20;
     d.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;background:radial-gradient(circle,rgba(232,74,74,.22),transparent);--d:${3+Math.random()*4}s;--dl:${Math.random()*3}s`;bg.appendChild(d);}
@@ -1717,7 +1927,8 @@ function doAtk(){
   const hi=document.getElementById('hero-battle-img');
   if(hi){hi.style.transform='translateX(40px) scale(1.05)';setTimeout(()=>hi.style.transform='',180);}
   const p=G.p,e=G.enemy,crit=Math.random()<.1;
-  let dmg=Math.max(1,p.atk-Math.floor(e.def*.45)+Math.floor(Math.random()*8));
+  const atkB=G.buffs.atkup>0?1.5:1;
+  let dmg=Math.max(1,Math.floor(p.atk*atkB)-Math.floor(e.def*.45)+Math.floor(Math.random()*8));
   if(crit) dmg=Math.floor(dmg*1.6);
   e.hp=Math.max(0,e.hp-dmg);
   sfx('attack'); shakeEnemy();
@@ -1755,6 +1966,17 @@ function useBSk(id){
     setLog(`✨ <span class="hl">${sk.name}</span>！HPが${sk.pow}回復！`);
   } else if(sk.t==='buff'){
     G.buffs.shield=2;setLog(`🛡️ <span class="hl">${sk.name}</span>！防御力が上がった！`);
+  } else if(sk.t==='buffatk'){
+    G.buffs.atkup=3;setLog(`🔥 <span class="hl">${sk.name}</span>！3ターンの間、攻撃力が1.5倍に上がった！`);
+  } else if(sk.t==='healall'){
+    p.hp=Math.min(p.mhp,p.hp+sk.pow); popDmg('+'+sk.pow,'#27c96a',true);
+    let n=1;
+    (G.party||[]).forEach(id=>{ const st=G.abt&&G.abt[id]; if(!st) return; if(st.down){ st.down=false; st.hp=Math.floor(st.mhp*0.5); n++; } else { st.hp=Math.min(st.mhp,st.hp+sk.pow); n++; } });
+    setLog(`💖 <span class="hl">${sk.name}</span>！味方${n}人のHPが回復し、倒れた仲間も立ち上がった！`);
+  } else if(sk.t==='reraise'){
+    G.buffs.reraise=1; setLog(`😇 <span class="hl">${sk.name}</span>！戦闘不能になっても一度だけ復活する加護を得た！`);
+  } else if(sk.t==='counter'){
+    G.buffs.counter=1; setLog(`🥋 <span class="hl">${sk.name}</span>！反撃の構え。次に受けた攻撃を倍にして返す！`);
   } else if(sk.t==='drain'){
     const dmg=Math.max(1,sk.pow+Math.floor(p.mag*.5)-Math.floor(e.def*.3));
     e.hp=Math.max(0,e.hp-dmg);p.hp=Math.min(p.mhp,p.hp+Math.floor(dmg*.5));
@@ -1791,7 +2013,8 @@ function useBSk(id){
     });
     return; // 共通末尾(即enemyTurn)をスキップ。詠唱完了後に処理する
   } else {
-    const dmg=Math.max(1,sk.pow+Math.floor(p.mag*.6)-Math.floor(e.def*.3)+Math.floor(Math.random()*12));
+    const magB=G.buffs.atkup>0?1.5:1;
+    const dmg=Math.max(1,Math.floor((sk.pow+Math.floor(p.mag*.6))*magB)-Math.floor(e.def*.3)+Math.floor(Math.random()*12));
     e.hp=Math.max(0,e.hp-dmg);
     const cols={fire:'#ff8c42',thun:'#f5c842',bliz:'#00d4ff',slash:'#a855f7'};
     popDmg(dmg,cols[sk.id]||'#a855f7',false);
@@ -1806,7 +2029,7 @@ function useBSk(id){
 
 function openItemSelect(){
   if(!G.myTurn||!G.inBattle) return;
-  const us=G.items.filter(i=>i.qty>0&&(i.t==='heal'||i.t==='fullhp'||i.t==='mp'||i.t==='dmg'));
+  const us=G.items.filter(i=>i.qty>0&&(i.t==='heal'||i.t==='fullhp'||i.t==='mp'||i.t==='dmg'||i.t==='cure'));
   if(!us.length){ setLog('使えるアイテムが無い！'); return; }
   document.getElementById('bitbd').innerHTML=us.map(it=>`
     <div class="bskc" onclick="useBItem('${it.id}')">
@@ -1837,6 +2060,7 @@ function applyItem(it){
   if(it.t==='heal'){const h=Math.min(it.v,p.mhp-p.hp);p.hp+=h;popDmg('+'+h,'#27c96a',true);setLog(`🧪 ${it.name}！HPが${h}回復！`);}
   else if(it.t==='fullhp'){p.hp=p.mhp;p.mp=p.mmp;popDmg('FULL!','#27c96a',true);setLog(`💎 ${it.name}！HP・MPが完全回復！`);}
   else if(it.t==='mp'){const m=Math.min(it.v,p.mmp-p.mp);p.mp+=m;setLog(`💧 ${it.name}！MPが${m}回復！`);}
+  else if(it.t==='cure'){G.pstatus={};popDmg('解毒','#27c96a',true);setLog(`🌿 ${it.name}！毒・麻痺がすべて治った！`);}
 }
 
 function tickStatus(){
@@ -1845,8 +2069,49 @@ function tickStatus(){
   if(e.status.includes('burn')){const d=Math.floor(e.mhp*.04);e.hp=Math.max(0,e.hp-d);popDmg(d,'#ff8c42',false);}
 }
 
+// 敵がプレイヤーに状態異常を付与（毒系→毒、ボス→麻痺）
+function maybeInflictPlayer(e){
+  if(!G.pstatus) G.pstatus={};
+  const nm=e.name||'';
+  if((nm.includes('どく')||nm.includes('呪い'))&&!(G.pstatus.poison>0)&&Math.random()<0.35){
+    G.pstatus.poison=3; setLog(`☠️ ${e.name}の毒攻撃！アルシアは毒に侵された！`);
+  } else if(e.boss&&!(G.pstatus.paralyze>0)&&Math.random()<0.18){
+    G.pstatus.paralyze=2; setLog(`⚡ ${e.name}の重い一撃！アルシアは痺れて動けなくなることがある…！`);
+  }
+}
+
+// プレイヤーの手番開始：バフ減衰・毒ダメージ・麻痺判定
+function beginPlayerTurn(){
+  const p=G.p;
+  if(!G.pstatus) G.pstatus={};
+  if(G.buffs.atkup>0){ G.buffs.atkup--; if(G.buffs.atkup===0) setLog('🔥 攻撃力の高ぶりが収まった。'); }
+  // 毒のダメージ
+  if(G.pstatus.poison>0){
+    const d=Math.max(3,Math.floor(p.mhp*0.05));
+    p.hp=Math.max(0,p.hp-d); popDmg(d,'#9b59b6',true);
+    setLog(`☠️ 毒のダメージ！アルシアは${d}のダメージを受けた…（残り${G.pstatus.poison-1}ターン）`);
+    G.pstatus.poison--; updateBUI();
+    if(p.hp<=0){ battleLose(); return; }
+  }
+  // 麻痺：一定確率で行動できない
+  if(G.pstatus.paralyze>0){
+    G.pstatus.paralyze--;
+    if(Math.random()<0.5){
+      setLog('⚡ アルシアは麻痺して動けない！');
+      updateBUI(); setTimeout(enemyTurn,1100); return;
+    }
+  }
+  G.myTurn=true; updateBUI();
+}
+
 function tryRun(){
   if(!G.myTurn||!G.inBattle) return;
+  // 闘技場では「逃げる」＝記録を残して退場（必ず成功）
+  if(G.arena&&G.arena.active){
+    G.myTurn=false; G.arena.active=false; G.inBattle=false; sfx('run');
+    setLog(`🏟️ 闘技場から退場した。最高到達 WAVE ${G.arena.best}`); saveGame(true);
+    setTimeout(()=>{showScreen('gs');updateUI();renderMap();playBGM('field');},900); return;
+  }
   G.myTurn=false;
   if(Math.random()<.55){G.inBattle=false;sfx('run');setLog('うまく逃げ切った！');setTimeout(()=>{showScreen('gs');updateUI();renderMap();playBGM('field');},900);}
   else{setLog('逃げられなかった！');setTimeout(enemyTurn,800);}
@@ -1894,7 +2159,7 @@ function enemyTurn(){
 function enemyAct(){
   if(!G.inBattle) return;
   const p=G.p,e=G.enemy;
-  if(e.status?.includes('slow')&&Math.random()<.4){setLog(`🧊 ${e.name}は動きが遅い！`);G.myTurn=true;updateBUI();if(G.buffs.shield)G.buffs.shield--;return;}
+  if(e.status?.includes('slow')&&Math.random()<.4){setLog(`🧊 ${e.name}は動きが遅い！`);if(G.buffs.shield)G.buffs.shield--;beginPlayerTurn();return;}
   // ターゲット選択（主人公を狙いやすいが、生存中の仲間も狙う）
   const targets=[{type:'hero',w:3}];
   (G.party||[]).forEach(id=>{ if(G.abt&&G.abt[id]&&!G.abt[id].down) targets.push({type:'ally',id,w:1}); });
@@ -1908,6 +2173,15 @@ function enemyAct(){
     sfx('enemyhit'); flash('rgba(232,74,74,.45)');
     popDmg(dmg,'#e84a4a',true);updateBUI();
     if(p.hp<=0){battleLose();return;}
+    // カウンター：受けたダメージの2倍を反撃
+    if(G.buffs.counter>0){
+      G.buffs.counter=0; const cd=dmg*2; e.hp=Math.max(0,e.hp-cd);
+      sfx('attack'); shakeEnemy(); popDmg(cd,'#f5c842',false);
+      setLog(`🥋 カウンター！${e.name}に<span class="hl">${cd}</span>の反撃ダメージ！`);
+      updateBUI(); if(e.hp<=0){ battleWin(); return; }
+    } else {
+      maybeInflictPlayer(e);
+    }
   } else {
     const a=ALLIES[tgt.id], st=G.abt[tgt.id];
     const dmg=Math.max(1,Math.floor(e.atk*0.8)-a.def+Math.floor(Math.random()*6));
@@ -1921,7 +2195,7 @@ function enemyAct(){
     setLog('アルシアは魔力を使い果たして倒れ込み、動けない…！');
     updateBUI(); setTimeout(enemyTurn,1000); return;
   }
-  G.myTurn=true;
+  beginPlayerTurn();
 }
 
 function explosionFx(){
@@ -1979,12 +2253,126 @@ function bumpQuest(qid){
   q.prog=Math.min(q.goal,q.prog+1);
   checkQuestDone(q);
 }
+
+// ── 反復討伐クエスト（依頼掲示板）──
+const BOUNTY_TARGETS=['スライム','コウモリ','ゴブリン','スケルトン','オーク','暗黒騎士','ドラゴン'];
+function newBounty(){
+  const cnt=G.bounty?G.bounty.count:0;
+  const target=BOUNTY_TARGETS[Math.floor(Math.random()*BOUNTY_TARGETS.length)];
+  const goal=3+Math.floor(Math.random()*4); // 3〜6体
+  const mult=1+cnt*0.15; // 回数ごとに報酬増
+  G.bounty={target,goal,prog:0,count:cnt,
+    rgold:Math.floor((300+goal*120)*mult),
+    rxp:Math.floor((250+goal*100)*mult), ready:false};
+}
+function bumpBounty(name){
+  const b=G.bounty; if(!b||b.ready) return;
+  // スライム系はまとめて「スライム」依頼に対応
+  const hit = (b.target==='スライム') ? SLIME_NAMES.includes(name) : (name===b.target);
+  if(!hit) return;
+  b.prog=Math.min(b.goal,b.prog+1);
+  if(b.prog>=b.goal){ b.ready=true; toast(`📋 依頼達成！「${b.target}討伐」報酬を受け取れる！`); }
+}
+function claimBounty(){
+  const b=G.bounty; if(!b||!b.ready) return;
+  G.p.gold+=b.rgold; gainXP(b.rxp);
+  toast(`📋 依頼報酬！ XP+${b.rxp} 💰+${b.rgold}`); sfx('coin');
+  G.bounty.count=(b.count||0)+1; newBounty();
+  updateUI(); fillQuests(); saveGame(true);
+}
+
+// ══════════ 実績＆称号 ＆ 図鑑 ══════════
+const ACHIEVEMENTS=[
+  {id:'a_kill10', icon:'🗡️',title:'駆け出しの戦士',  desc:'敵を10体倒した',     check:a=>a.kills>=10,  bonus:{atk:3}},
+  {id:'a_kill50', icon:'⚔️',title:'一人前の冒険者',  desc:'敵を50体倒した',     check:a=>a.kills>=50,  bonus:{atk:5,def:5}},
+  {id:'a_kill200',icon:'🛡️',title:'歴戦の勇者',      desc:'敵を200体倒した',    check:a=>a.kills>=200, bonus:{atk:10,def:10,mhp:50}},
+  {id:'a_boss5',  icon:'👑',title:'魔王の天敵',      desc:'ボスを5体倒した',    check:a=>a.bosses>=5,  bonus:{mag:10,mmp:20}},
+  {id:'a_dragon10',icon:'🐉',title:'竜殺し',         desc:'竜を10体倒した',     check:a=>a.dragons>=10,bonus:{atk:15}},
+  {id:'a_gold50k',icon:'💰',title:'大富豪',          desc:'累計5万Gを稼いだ',   check:a=>a.goldEarned>=50000, bonus:{atk:5,def:5,mag:5}},
+  {id:'a_arena10',icon:'🏟️',title:'闘技王',          desc:'闘技場で10ウェーブ突破',check:(a,ar)=>ar&&ar.best>=10, bonus:{mhp:100,mmp:50}},
+  {id:'a_dex10',  icon:'📖',title:'魔物博士',        desc:'図鑑を10種埋めた',   check:a=>(G.dex&&G.dex.length>=10), bonus:{mag:8}},
+];
+function checkAchievements(){
+  ACHIEVEMENTS.forEach(ac=>{
+    if(G.ach.unlocked.includes(ac.id)) return;
+    if(ac.check(G.ach,G.arena)){
+      G.ach.unlocked.push(ac.id);
+      const b=ac.bonus||{};
+      if(b.atk)G.p.atk+=b.atk; if(b.def)G.p.def+=b.def; if(b.mag)G.p.mag+=b.mag;
+      if(b.mhp){G.p.mhp+=b.mhp;G.p.hp+=b.mhp;} if(b.mmp){G.p.mmp+=b.mmp;G.p.mp+=b.mmp;}
+      G.p.title=ac.title;
+      sfx('rare'); toast(`🏆 称号「${ac.title}」獲得！${ac.desc}`);
+    }
+  });
+}
+function recordKill(e){
+  if(!e) return;
+  const a=G.ach;
+  a.kills++; a.goldEarned+=e.gold||0;
+  if(e.boss) a.bosses++;
+  if(e.name&&(e.name.includes('ドラゴン')||e.name.includes('竜'))) a.dragons++;
+  // 図鑑登録（ボスは名前を正規化）
+  let dn=e.name;
+  if(dn&&dn.includes('ヴァルガ')) dn='滅びの竜 ヴァルガ';
+  else if(dn&&dn.includes('エクリプス')) dn='星辰を喰らう者 エクリプス';
+  if(dn && !G.dex.includes(dn)) G.dex.push(dn);
+  checkAchievements();
+}
+function openRecords(){ fillRecords(); openM('recm'); }
+function fillRecords(){
+  // 称号
+  const title=G.p.title?`<div class="ininf" style="text-align:center;color:var(--gold);font-size:14px;margin-bottom:6px">現在の称号：<b>${G.p.title}</b></div>`:'<div class="ininf" style="text-align:center;color:var(--m2);margin-bottom:6px">称号：まだ無し</div>';
+  // 統計
+  const a=G.ach;
+  const stats=`<div class="ininf" style="text-align:left;margin-bottom:10px;font-size:11px">
+    🗡️討伐 ${a.kills} ｜ 👑ボス ${a.bosses} ｜ 🐉竜 ${a.dragons}<br>
+    💰累計 ${a.goldEarned}G ｜ 🏟️闘技場最高 ${G.arena.best}WAVE ｜ 📖図鑑 ${G.dex.length}/${DEX_MASTER.length}</div>`;
+  // 実績
+  const achHtml='<div class="estt" style="margin:6px 0 8px">🏆 実績・称号</div><div class="slist">'+ACHIEVEMENTS.map(ac=>{
+    const got=G.ach.unlocked.includes(ac.id);
+    return `<div class="si" style="opacity:${got?1:0.5};border-color:${got?'var(--gold)':'var(--b1)'}">
+      <div class="siico">${got?ac.icon:'🔒'}</div>
+      <div class="sii"><div class="sin">${ac.title}${got?' ✅':''}</div><div class="sid">${ac.desc}</div></div>
+    </div>`;}).join('')+'</div>';
+  // 図鑑
+  const dexHtml='<div class="estt" style="margin:14px 0 8px">📖 モンスター図鑑</div><div class="slist">'+DEX_MASTER.map(m=>{
+    const seen=G.dex.includes(m.name);
+    const im=seen&&m.img&&ENEMY_IMGS[m.img];
+    return `<div class="si" style="opacity:${seen?1:0.45}">
+      <div class="siico">${im?`<img src="${im.src}" style="height:34px;width:auto;border-radius:5px">`:(seen?m.icon:'❔')}</div>
+      <div class="sii"><div class="sin">${seen?m.name:'？？？'}</div><div class="sid">${seen?'討伐済み':'未発見'}</div></div>
+    </div>`;}).join('')+'</div>';
+  document.getElementById('recbd').innerHTML=title+stats+achHtml+dexHtml;
+}
 const SLIME_NAMES=['スライム','みどりスライム','きいろスライム','どくスライム','ピンクスライム'];
 
 let _pendingRevive=false;
 function battleWin(){
   const e=G.enemy;
   G.p.gold+=e.gold;gainXP(e.xp);
+  recordKill(e);
+  // ── 闘技場：連戦モード ──
+  if(G.arena.active && e.arena){
+    const cleared=G.arena.wave;
+    if(cleared>G.arena.best){ G.arena.best=cleared; checkAchievements(); }
+    G.arena.wave++;
+    G.p.hp=Math.min(G.p.mhp,G.p.hp+Math.floor(G.p.mhp*0.3));
+    G.p.mp=Math.min(G.p.mmp,G.p.mp+Math.floor(G.p.mmp*0.3));
+    sfx('victory'); partyBanter('win');
+    setLog(`✅ WAVE ${cleared} クリア！ <span class="hl">XP+${e.xp}</span> <span class="hl">+${e.gold}💰</span> HP/MP小回復。次のWAVEへ…`);
+    updateBUI(); saveGame(true);
+    setTimeout(()=>spawnArenaWave(),1300);
+    return;
+  }
+  // ── 真の最終ボス「星辰を喰らう者」撃破 → 真エンディング ──
+  if(e.trueFinal){
+    G.story.trueCleared=true; G.story.landUnlocked=true;
+    G.inBattle=false; G.myTurn=false;
+    setLog(`${e.name}を打ち倒した！ <span class="hl">XP+${e.xp}</span> <span class="hl">Gold+${e.gold}💰</span>`);
+    updateBUI(); sfx('victory'); saveGame(true);
+    setTimeout(()=>{ showScreen('gs');updateUI();renderMap(); _pendingRevive=true; doTrueEnding(); },1300);
+    return;
+  }
   // ── 最終ボス：無限復活モード ──
   if(e.final){
     G.story.bossKills=(G.story.bossKills||0)+1;
@@ -1997,6 +2385,9 @@ function battleWin(){
       // 物語の決着 → エンディング → 閉じたら無限モードへ
       G.inBattle=false;
       setTimeout(()=>{ showScreen('gs');updateUI();renderMap(); _pendingRevive=true; doEnding(); },1300);
+    } else if(G.story.bossKills>=3 && !G.story.trueCleared){
+      // ヴァルガを計3回撃破 → 黒幕「星辰を喰らう者」が顕現
+      setTimeout(()=>{ triggerTrueBoss(); },1300);
     } else {
       setTimeout(()=>{ reviveAndResume(); },1300);
     }
@@ -2005,10 +2396,17 @@ function battleWin(){
   // ── 通常の勝利 ──
   G.inBattle=false;
   sfx('victory'); partyBanter('win');
-  if(SLIME_NAMES.includes(e.name)) bumpQuest('q1');
-  const qm={'ゴブリン':'q2','洞窟の主':'q3','スケルトン':'q5','オーク':'q6','暗黒騎士':'q7','ドラゴン':'q8'};
-  if(qm[e.name]) bumpQuest(qm[e.name]);
-  setLog(`${e.name}を倒した！ <span class="hl">XP+${e.xp}</span> <span class="hl">Gold+${e.gold}💰</span>`);
+  if(SLIME_NAMES.includes(e.name)){ bumpQuest('q1'); bumpQuest('q11'); }
+  const qm={'ゴブリン':['q2'],'洞窟の主':['q3'],'スケルトン':['q5'],'オーク':['q6','q12'],'暗黒騎士':['q7'],'ドラゴン':['q8','q10'],'コウモリ':['q9']};
+  (qm[e.name]||[]).forEach(bumpQuest);
+  bumpBounty(e.name);
+  // 竜系からは「竜のうろこ」がドロップ（神話級装備の素材）
+  let dropMsg='';
+  if(e.name&&(e.name.includes('ドラゴン')||e.name.includes('竜'))){
+    const n=1+Math.floor(Math.random()*2); giveItem('uroko',n);
+    dropMsg=` <span class="hl">🐉竜のうろこ×${n}</span>`;
+  }
+  setLog(`${e.name}を倒した！ <span class="hl">XP+${e.xp}</span> <span class="hl">Gold+${e.gold}💰</span>${dropMsg}`);
   setTimeout(()=>{showScreen('gs');updateUI();renderMap();saveGame();playBGM('field');
     storyOnKill(e.name); pumpStory();
   },1300);
@@ -2020,9 +2418,29 @@ function reviveAndResume(){
   e.mhp=s.mhp; e.hp=s.mhp; e.atk=s.atk; e.def=s.def; e.xp=s.xp; e.gold=s.gold;
   e.status=[]; e.final=true; e.boss=true;
   G.inBattle=true; G.myTurn=true; G.buffs={};
-  explosionFx(); sfx('explosion'); playBGM('battle');
+  explosionFx(); sfx('explosion'); playBGM('boss');
   setLog(`💀 だが魔王は滅びない――！ ヴァルガは更なる力を得て<span class="hl">復活</span>した！（${n+1}体目・強化＋${n}）`);
   updateBUI(); showScreen('bs');
+}
+
+// ── 真の最終ボス「星辰を喰らう者 エクリプス」──
+function triggerTrueBoss(){
+  const s={mhp:6000,atk:160,def:60,xp:30000,gold:30000};
+  G.enemy={name:'星辰を喰らう者 エクリプス',img:'e_lord',icon:'🌑',lv:40,boss:true,trueFinal:true,...s,hp:s.mhp,status:[]};
+  G.inBattle=true; G.myTurn=true; G.buffs={};
+  showCutscene(STORY_TRUE_INTRO,()=>{
+    initAllyBattle();
+    explosionFx(); sfx('explosion'); playBGM('boss');
+    setLog('星辰を喰らう者が顕現した――すべての元凶との、真の決戦！');
+    updateBUI(); showScreen('bs');
+  });
+}
+function doTrueEnding(){
+  showCutscene(STORY_TRUE_ENDING,()=>{
+    document.getElementById('endsub').innerHTML='星辰を喰らう者は滅び、エターニアに永遠の夜明けが訪れた。<br>あなたは世界の真の救世主となった。<br><br>★ 真エンディング ★<br><br><span style="color:#4af5d2">「未知の大陸」が解放された！<br>港町の酒場から旅立てる。</span><br><br>遊んでくれて、本当にありがとう！';
+    document.getElementById('ends').classList.add('show');
+    updateStoryUI();saveGame(true);
+  });
 }
 
 function endsContinue(){
@@ -2031,6 +2449,14 @@ function endsContinue(){
 }
 
 function battleLose(){
+  // リレイズの加護：一度だけ復活して戦闘続行
+  if(G.buffs&&G.buffs.reraise>0){
+    G.buffs.reraise=0; G.p.hp=Math.floor(G.p.mhp*0.5);
+    sfx('heal'); popDmg('リレイズ！','#ffd24a',true);
+    setLog('😇 リレイズ！アルシアは光に包まれ、復活した！');
+    updateBUI(); G.myTurn=true; return;
+  }
+  if(G.arena&&G.arena.active){ G.arena.active=false; toast(`🏟️ 闘技場 終了！ 最高到達 WAVE ${G.arena.best}`); saveGame(true); }
   G.inBattle=false;sfx('defeat');G.p.hp=Math.floor(G.p.mhp*.25);G.p.x=10;G.p.y=10;G.p.px=10;G.p.py=10;G.p.tx=10;G.p.ty=10;lastArriveKey='10,10';
   setLog('やられてしまった…はじまりの村に戻った。');
   setTimeout(()=>{showScreen('gs');updateUI();renderMap();playBGM('field');},1300);
@@ -2094,7 +2520,20 @@ function fillQuests(){
     <div class="qd">${st.idx>=5?'すべての星辰のかけらは輝きを取り戻した。世界は救われた。':'▶ '+STORY_OBJ[st.idx]}</div>
     <div class="qr" style="color:var(--gold)">✨ 星辰のかけら ${st.frags}/3</div>
   </div><div class="estt" style="margin:4px 0 8px">― サブクエスト ―</div>`;
-  document.getElementById('qubd').innerHTML=storyHtml+G.quests.map(q=>`
+  // 反復討伐（依頼掲示板）
+  if(!G.bounty) newBounty();
+  const b=G.bounty;
+  const bountyHtml=`<div class="estt" style="margin:10px 0 8px">― 📋 依頼掲示板（反復）―</div>
+    <div class="qc aq" style="border-color:var(--gold)">
+      <div class="qt" style="color:var(--gold)">📋 ${b.target}討伐の依頼 <span style="font-size:10px;color:var(--m2)">（達成数 ${b.count}）</span></div>
+      <div class="qd">${b.target}を${b.goal}体倒して報酬を受け取ろう。受け取るたびに新しい依頼＆報酬UP！</div>
+      <div class="qpw"><div class="qpf" style="width:${b.prog/b.goal*100}%"></div></div>
+      <div class="qpt">${b.prog}/${b.goal}</div>
+      <div class="qr">🎁 XP${b.rxp} / Gold${b.rgold}</div>
+      ${b.ready?`<button class="innbtn" style="margin-top:8px;border-color:var(--gold);color:var(--gold)" onclick="claimBounty()">🎁 報酬を受け取る</button>`:''}
+    </div>
+    <div class="estt" style="margin:10px 0 8px">― 通常クエスト ―</div>`;
+  document.getElementById('qubd').innerHTML=storyHtml+bountyHtml+G.quests.map(q=>`
     <div class="qc ${q.done?'dq':'aq'}">
       <div class="qt">${q.done?'✅':'🔵'} ${q.title}</div><div class="qd">${q.desc}</div>
       <div class="qpw"><div class="qpf" style="width:${q.prog/q.goal*100}%"></div></div>
@@ -2138,7 +2577,7 @@ function toast(msg){
 }
 
 function saveGame(silent){
-  try{localStorage.setItem('et2sv',JSON.stringify({p:G.p,items:G.items,quests:G.quests,equip:G.equip,skills:G.skills,visited:[...G.visited],story:G.story,ownedWeapons:G.ownedWeapons,party:G.party}));if(!silent)toast('💾 セーブした！');}catch(e){}
+  try{localStorage.setItem('et2sv',JSON.stringify({p:G.p,items:G.items,quests:G.quests,equip:G.equip,skills:G.skills,visited:[...G.visited],story:G.story,ownedWeapons:G.ownedWeapons,party:G.party,bounty:G.bounty,ach:G.ach,dex:G.dex,arena:{best:G.arena.best}}));if(!silent)toast('💾 セーブした！');}catch(e){}
 }
 function loadSave(){
   try{const r=localStorage.getItem('et2sv');if(!r) return;const d=JSON.parse(r);
@@ -2151,6 +2590,10 @@ function loadSave(){
     if(d.story){Object.assign(G.story,d.story);if(!Array.isArray(G.story.introShown))G.story.introShown=[];}
     if(Array.isArray(d.ownedWeapons))G.ownedWeapons=d.ownedWeapons;
     if(Array.isArray(d.party))G.party=d.party.filter(id=>ALLIES[id]);
+    if(d.bounty)G.bounty=d.bounty;
+    if(d.ach)Object.assign(G.ach,d.ach);
+    if(Array.isArray(d.dex))G.dex=d.dex;
+    if(d.arena&&typeof d.arena.best==='number')G.arena.best=d.arena.best;
     if(d.visited)G.visited=new Set(d.visited);toast('📂 データを読み込んだ！');}catch(e){}
 }
 
