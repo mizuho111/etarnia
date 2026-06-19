@@ -355,7 +355,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="t-div"></div>
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.06.19-l</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.06.19-m</div>
 </div>
 
 <!-- GAME -->
@@ -455,6 +455,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
       <div style="color:var(--m2);font-size:11px">Lv.<span id="slv">1</span> 魔法剣士</div>
     </div>
     <div class="sg" id="sgrid"></div>
+    <div class="innbtn" style="border-color:var(--green);color:var(--green);margin:12px 0 4px" onclick="closeM('stm');openTree()">🌳 育成（スキルツリー）<br><small style="font-size:10px;font-weight:400">SP <span id="spcount">0</span> 振り分け可</small></div>
     <div class="esec"><div class="estt">装備</div><div id="eql"></div></div>
   </div>
 </div></div>
@@ -472,6 +473,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 <div class="ov" id="recm" onclick="closeM('recm')"><div class="modal" onclick="event.stopPropagation()">
   <div class="mhd"><span class="mtt">🏆 記録</span><button class="mx" onclick="closeM('recm')">✕</button></div>
   <div class="mbd" id="recbd"></div>
+</div></div>
+
+<div class="ov" id="trm" onclick="closeM('trm')"><div class="modal" onclick="event.stopPropagation()">
+  <div class="mhd"><span class="mtt">🌳 育成（スキルツリー）</span><button class="mx" onclick="closeM('trm')">✕</button></div>
+  <div class="mbd" id="trbd"></div>
 </div></div>
 
 <div class="ov" id="skm" onclick="closeM('skm')"><div class="modal" onclick="event.stopPropagation()">
@@ -771,6 +777,8 @@ const G={
   ach:{kills:0,bosses:0,dragons:0,arenaClears:0,goldEarned:0,unlocked:[]},
   dex:[],
   arena:{best:0,active:false,wave:0},
+  dungeon:{best:0,active:false,floor:0,msg:''},
+  sp:0, tree:{},
   visited:new Set(),
   lastNpc:null,
   story:{idx:0,frags:0,goblins:0,introShown:[],ending:false,bossKills:0,trueCleared:false,landUnlocked:false},
@@ -1545,8 +1553,16 @@ function renderContent(b){
       <div class="innbtn" onclick="practiceSkill()">📖 特訓する（80G）<br><small style="font-size:10px;font-weight:400">全攻撃スキル威力 +5%</small></div>`+learnHtml;return;
   }
   if(b.type==='dungeon'){
-    el.innerHTML=`<div style="color:var(--red);font-size:12px;margin-bottom:12px;text-align:center">⚠️ 強敵の巣窟！万全の準備で挑め</div>
-      <div class="innbtn" style="border-color:var(--red);color:var(--red)" onclick="enterDungeon()">💀 深部に進む<br><small style="font-size:10px;font-weight:400">ボス戦が待ち受ける</small></div>`;return;
+    if(!G.dungeon.active){
+      el.innerHTML=`<div style="color:var(--red);font-size:12px;margin-bottom:12px;text-align:center">⚠️ 多階層ダンジョン。<b>潜るほど敵もお宝も強力</b>に。倒れると地上へ戻る（記録は残る）。</div>
+        <div class="ininf" style="margin-bottom:10px">🏆 最深到達：<b style="color:var(--gold)">地下 ${G.dungeon.best} 階</b></div>
+        <div class="innbtn" style="border-color:var(--red);color:var(--red)" onclick="startDungeon()">🕳️ 潜り始める</div>`;
+    } else {
+      el.innerHTML=`<div class="ininf" style="margin-bottom:10px;text-align:left">${G.dungeon.msg||'静かな通路だ…'}<br><br>現在地：<b style="color:var(--gold)">地下 ${G.dungeon.floor} 階</b><br>HP ${G.p.hp}/${G.p.mhp} ｜ MP ${G.p.mp}/${G.p.mmp}</div>
+        <div class="innbtn" style="border-color:#4af5d2;color:#4af5d2" onclick="dungeonDive()">⬇️ さらに深く潜る（地下 ${G.dungeon.floor+1} 階へ）<br><small style="font-size:10px;font-weight:400">戦闘・宝箱・泉・守護者…何が出るか</small></div>
+        <div class="innbtn" style="border-color:var(--gold);color:var(--gold)" onclick="dungeonRetreat()">🚪 引き返す（記録を残して地上へ）</div>`;
+    }
+    return;
   }
   if(b.type==='arena'){
     el.innerHTML=`<div class="ininf" style="text-align:left;margin-bottom:10px">次々と現れる敵を倒し続ける無限の試練。<br>WAVEを進むほど敵は強く、報酬も豪華に。<b style="color:var(--gold)">5の倍数WAVEは強敵</b>が出現！<br>毎WAVEクリアでHP・MPが少し回復。逃げれば記録を残して退場できる。<br><br>🏆 最高到達：<b style="color:var(--gold)">WAVE ${G.arena.best}</b></div>
@@ -1617,9 +1633,10 @@ function equipWeapon(w){
   if(!G.ownedWeapons) G.ownedWeapons=[];
   const cur=G.equip.weapon||{};
   G.p.atk-=(cur.atk||0); G.p.mag-=(cur.mag||0);
-  G.equip.weapon={id:w.id,name:w.name,icon:w.icon,stat:`ATK+${w.atk||0}${w.mag?` MAG+${w.mag}`:''}`,atk:w.atk||0,mag:w.mag||0};
+  const crit=w.crit||0;
+  G.equip.weapon={id:w.id,name:w.name,icon:w.icon,stat:`ATK+${w.atk||0}${w.mag?` MAG+${w.mag}`:''}${crit?` 会心+${Math.round(crit*100)}%`:''}`,atk:w.atk||0,mag:w.mag||0,crit:crit,r:w.r};
   G.p.atk+=w.atk||0; G.p.mag+=w.mag||0;
-  if(w.id && !G.ownedWeapons.some(o=>o.id===w.id)) G.ownedWeapons.push({id:w.id,name:w.name,icon:w.icon,atk:w.atk||0,mag:w.mag||0,r:w.r||'R'});
+  if(w.id && !G.ownedWeapons.some(o=>o.id===w.id)) G.ownedWeapons.push({id:w.id,name:w.name,icon:w.icon,atk:w.atk||0,mag:w.mag||0,r:w.r||'R',crit:crit});
   updateUI();
 }
 function wScore(w){return (w?.atk||0)+(w?.mag||0);}
@@ -1701,10 +1718,58 @@ function renderOwnedWeapons(){
   const cur=G.equip.weapon||{};
   el.innerHTML=(G.ownedWeapons&&G.ownedWeapons.length?G.ownedWeapons:[]).map((w,i)=>{
     const c=RARITY[w.r||'R'].c, eq=(cur.id&&cur.id===w.id)||cur.name===w.name;
-    return `<div class="si" onclick="equipOwned(${i})" style="border-color:${eq?'var(--gold)':'var(--b1)'}"><div class="siico">${w.icon}</div><div class="sii"><div class="sin" style="color:${c}">[${w.r||'R'}] ${w.name}</div><div class="sid">ATK+${w.atk||0}${w.mag?` MAG+${w.mag}`:''}</div></div><div class="sip">${eq?'装備中':'装備'}</div></div>`;
+    return `<div class="si" onclick="equipOwned(${i})" style="border-color:${eq?'var(--gold)':'var(--b1)'}"><div class="siico">${w.icon}</div><div class="sii"><div class="sin" style="color:${c}">[${w.r||'R'}] ${w.name}</div><div class="sid">ATK+${w.atk||0}${w.mag?` MAG+${w.mag}`:''}${w.crit?` 会心+${Math.round(w.crit*100)}%`:''}</div></div><div class="sip">${eq?'装備中':'装備'}</div></div>`;
   }).join('')||'<div class="ininf">まだ武器が無い。ガチャを引こう！</div>';
 }
 function equipOwned(i){ const w=G.ownedWeapons[i]; if(!w) return; equipWeapon(w); toast(`⚔️ ${w.name}を装備した！`); renderOwnedWeapons(); }
+
+// ══════════ ランダムレア装備（ドロップ） ══════════
+const LOOT_BASES=[
+  {name:'剣',  icon:'⚔️',aw:1.0,mw:0.0},
+  {name:'刀',  icon:'🗡️',aw:1.0,mw:0.0},
+  {name:'斧',  icon:'🪓',aw:1.15,mw:0.0},
+  {name:'槍',  icon:'🔱',aw:0.9,mw:0.2},
+  {name:'杖',  icon:'🪄',aw:0.0,mw:1.0},
+  {name:'宝珠',icon:'🔮',aw:0.3,mw:0.9},
+];
+const LOOT_RARITY=[
+  {r:'R',  wt:55, mult:1.0, pre:['なまくらの','古びた','ありふれた']},
+  {r:'SR', wt:30, mult:1.45,pre:['鋭利な','頑強な','熟練の','業物の']},
+  {r:'SSR',wt:12, mult:2.0, pre:['英雄の','灼熱の','烈風の','凍て付く']},
+  {r:'UR', wt:3,  mult:2.8, pre:['神話の','竜神の','星辰の','終焉の']},
+];
+let _lootSeq=0;
+function pickRarity(bias){
+  // bias: 0=通常, 大きいほど高レア寄り
+  const tbl=LOOT_RARITY.map((x,i)=>({...x, wt:x.wt*(i>=1?Math.pow(1.6,Math.min(bias,4)):1)}));
+  const tot=tbl.reduce((s,x)=>s+x.wt,0); let v=Math.random()*tot;
+  for(const x of tbl){ if((v-=x.wt)<0) return x; } return tbl[0];
+}
+function generateLoot(lv, bias){
+  const base=LOOT_BASES[Math.floor(Math.random()*LOOT_BASES.length)];
+  const ra=pickRarity(bias||0);
+  const power=Math.floor((10+lv*2.2)*ra.mult*(0.85+Math.random()*0.4));
+  const atk=Math.round(power*base.aw), mag=Math.round(power*base.mw);
+  const pre=ra.pre[Math.floor(Math.random()*ra.pre.length)];
+  // SSR/URは会心ボーナス付きの可能性
+  let crit=0, suffix='';
+  if((ra.r==='SSR'||ra.r==='UR')&&Math.random()<0.6){ crit=(ra.r==='UR'?0.12:0.07)+Math.random()*0.05; crit=Math.round(crit*100)/100; suffix='・会心'; }
+  return {id:'loot_'+(++_lootSeq)+'_'+Math.floor(Math.random()*100000), name:pre+base.name+suffix, icon:base.icon, atk, mag, r:ra.r, crit};
+}
+function rarityTag(w){ const c=(RARITY[w.r]||{c:'#fff'}).c; return `<span style="color:${c}">[${w.r}]${w.name}</span>`; }
+// 戦闘勝利時のドロップ判定（ログ用の文字列を返す）
+function maybeDropLoot(e){
+  let chance=e.boss?0.5:0.13;
+  if(e.arena) chance=0.2;
+  if(Math.random()>chance) return '';
+  const bias=(e.boss?2:0)+((e.lv||0)>=15?1:0);
+  const w=generateLoot(Math.max(G.p.lv, e.lv||1), bias);
+  G.ownedWeapons.push(w);
+  if(w.r==='UR'||w.r==='SSR') sfx('rare');
+  // 装備中より強ければ知らせる
+  const better=(w.atk+w.mag)>((G.equip.weapon&&(G.equip.weapon.atk+G.equip.weapon.mag))||0);
+  return ` 🎁${rarityTag(w)}をドロップ！${better?'<span class="hl">(装備更新候補)</span>':''}`;
+}
 
 // ── 仲間 ──
 function recruitAlly(id){
@@ -1782,6 +1847,55 @@ function learnSkill(id){
   toast(`✨ ${s.name}を習得した！`);updateUI();renderContent(G.curB);
 }
 function enterDungeon(){exitBuilding();setTimeout(()=>triggerBattle(true),300);}
+
+// ══════════ 多階層ダンジョン探索 ══════════
+function dungeonB(){ return BUILDINGS.find(b=>b.type==='dungeon'); }
+function startDungeon(){ G.dungeon.active=true; G.dungeon.floor=0; G.dungeon.msg='暗い階段を下りていく…'; sfx('select'); renderContent(G.curB); }
+function showDungeonHub(){
+  const b=dungeonB();
+  G.inIndoor=true; G.curB=b;
+  document.getElementById('iico').textContent='🕳️';
+  document.getElementById('itit').textContent='暗黒の洞窟';
+  document.getElementById('isub').textContent=`地下 ${G.dungeon.floor} 階`;
+  drawIndoor(b); renderContent(b); updateUI(); showScreen('is'); playBGM('town');
+}
+function spawnDungeonEnemy(f,isBoss){
+  const pool=[...ENEMIES.slice(0,7),...CONTINENT_ENEMIES];
+  const base={...pool[Math.floor(Math.random()*pool.length)]};
+  const sc=1+(f-1)*0.14;
+  const hp=Math.floor(base.mhp*sc*(isBoss?2.5:1));
+  G.enemy={...base,name:(isBoss?'階層守護者 ':'')+base.name,hp,mhp:hp,
+    atk:Math.floor(base.atk*sc*(isBoss?1.3:1)),def:Math.floor(base.def*sc),
+    xp:Math.floor((base.xp||50)*sc),gold:Math.floor((base.gold||30)*sc),status:[],boss:isBoss,dungeon:true};
+  G.inIndoor=false;G.inBattle=true;G.myTurn=true;G.buffs={};initAllyBattle();
+  updateBUI();setLog(`地下${f}階 ― ${G.enemy.name} があらわれた！`);showScreen('bs');
+  playBGM(isBoss?'boss':'battle');
+  const bg=document.getElementById('bbg');bg.innerHTML='';
+  for(let i=0;i<10;i++){const d=document.createElement('div');d.className='bp';const sz=Math.random()*60+20;
+    d.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;background:radial-gradient(circle,rgba(168,85,247,.2),transparent);--d:${3+Math.random()*4}s;--dl:${Math.random()*3}s`;bg.appendChild(d);}
+}
+function dungeonDive(){
+  G.dungeon.floor++;
+  const f=G.dungeon.floor;
+  let ev;
+  if(f%5===0) ev='boss';
+  else { const r=Math.random(); ev = r<0.62?'battle' : r<0.82?'treasure' : 'heal'; }
+  if(ev==='battle'||ev==='boss'){ spawnDungeonEnemy(f, ev==='boss'); return; }
+  if(ev==='treasure'){
+    const g=Math.floor((100+f*40)*(1+Math.random())); G.p.gold+=g;
+    let msg=`💰 宝箱を見つけた！ ${g}G 獲得！`;
+    if(Math.random()<0.5){ const w=generateLoot(Math.max(G.p.lv,f+5), f>=10?2:1); G.ownedWeapons.push(w); msg+=` 🎁${rarityTag(w)}も入手！`; }
+    sfx('coin'); G.dungeon.msg=msg; updateUI(); renderContent(G.curB); return;
+  }
+  // heal
+  G.p.hp=G.p.mhp; G.p.mp=G.p.mmp; sfx('heal');
+  G.dungeon.msg='⛲ 癒やしの泉だ。HP・MPが全回復した！'; updateUI(); renderContent(G.curB);
+}
+function dungeonRetreat(){
+  const f=G.dungeon.floor; G.dungeon.active=false;
+  toast(`🚪 地下${f}階から引き返した（最深 ${G.dungeon.best}階）`); saveGame(true);
+  exitBuilding();
+}
 function enterContinent(){exitBuilding();toast('⚓ 未知の大陸に上陸した！');setTimeout(()=>triggerContinentBattle(),400);}
 
 // ── 闘技場（無限ウェーブ）──
@@ -1928,7 +2042,7 @@ function doAtk(){
   G.myTurn=false;
   const hi=document.getElementById('hero-battle-img');
   if(hi){hi.style.transform='translateX(40px) scale(1.05)';setTimeout(()=>hi.style.transform='',180);}
-  const p=G.p,e=G.enemy,crit=Math.random()<.1;
+  const p=G.p,e=G.enemy,crit=Math.random()<(.1+((G.equip.weapon&&G.equip.weapon.crit)||0)+(p.critBonus||0));
   const atkB=G.buffs.atkup>0?1.5:1;
   let dmg=Math.max(1,Math.floor(p.atk*atkB)-Math.floor(e.def*.45)+Math.floor(Math.random()*8));
   if(crit) dmg=Math.floor(dmg*1.6);
@@ -2113,6 +2227,12 @@ function tryRun(){
     G.myTurn=false; G.arena.active=false; G.inBattle=false; sfx('run');
     setLog(`🏟️ 闘技場から退場した。最高到達 WAVE ${G.arena.best}`); saveGame(true);
     setTimeout(()=>{showScreen('gs');updateUI();renderMap();playBGM('field');},900); return;
+  }
+  // ダンジョンでは「逃げる」＝そのフロアのハブに戻る（潜行は継続）
+  if(G.dungeon&&G.dungeon.active){
+    G.myTurn=false; G.inBattle=false; sfx('run');
+    G.dungeon.msg='⚠️ 戦闘を切り抜け、物陰に身を隠した。';
+    setTimeout(()=>showDungeonHub(),700); return;
   }
   G.myTurn=false;
   if(Math.random()<.55){G.inBattle=false;sfx('run');setLog('うまく逃げ切った！');setTimeout(()=>{showScreen('gs');updateUI();renderMap();playBGM('field');},900);}
@@ -2346,6 +2466,53 @@ function fillRecords(){
     </div>`;}).join('')+'</div>';
   document.getElementById('recbd').innerHTML=title+stats+achHtml+dexHtml;
 }
+
+// ══════════ スキルツリー（育成分岐） ══════════
+const TREE=[
+  {id:'w1',path:'戦士',name:'剛力',  icon:'💪',desc:'攻撃+4',     max:5,tier:0,bonus:{atk:4}},
+  {id:'w2',path:'戦士',name:'会心',  icon:'🎯',desc:'会心率+3%',  max:5,tier:3,bonus:{crit:0.03}},
+  {id:'w3',path:'戦士',name:'豪腕',  icon:'⚔️',desc:'攻撃+12',    max:3,tier:8,bonus:{atk:12}},
+  {id:'m1',path:'魔道',name:'叡智',  icon:'📘',desc:'魔力+4',     max:5,tier:0,bonus:{mag:4}},
+  {id:'m2',path:'魔道',name:'魔力増幅',icon:'💧',desc:'最大MP+12',max:5,tier:3,bonus:{mmp:12}},
+  {id:'m3',path:'魔道',name:'大魔導',icon:'🔮',desc:'魔力+12',    max:3,tier:8,bonus:{mag:12}},
+  {id:'g1',path:'守護',name:'鉄壁',  icon:'🛡️',desc:'防御+4',     max:5,tier:0,bonus:{def:4}},
+  {id:'g2',path:'守護',name:'生命力',icon:'❤️',desc:'最大HP+28',  max:5,tier:3,bonus:{mhp:28}},
+  {id:'g3',path:'守護',name:'不屈',  icon:'🏰',desc:'防御+8 HP+35',max:3,tier:8,bonus:{def:8,mhp:35}},
+];
+function pathSpent(path){ return TREE.filter(n=>n.path===path).reduce((s,n)=>s+((G.tree&&G.tree[n.id])||0),0); }
+function openTree(){ fillTree(); openM('trm'); }
+function allocNode(id){
+  const n=TREE.find(x=>x.id===id); if(!n) return;
+  const rank=(G.tree&&G.tree[id])||0;
+  if(rank>=n.max){ toast('このノードは最大まで取得済み'); return; }
+  if((G.sp||0)<=0){ toast('スキルポイントが足りない！レベルアップで入手'); return; }
+  if(pathSpent(n.path)<n.tier){ toast(`「${n.path}」に${n.tier}ポイント振ると解放される`); return; }
+  G.sp--; if(!G.tree)G.tree={}; G.tree[id]=rank+1;
+  const b=n.bonus;
+  if(b.atk)G.p.atk+=b.atk; if(b.def)G.p.def+=b.def; if(b.mag)G.p.mag+=b.mag;
+  if(b.mhp){G.p.mhp+=b.mhp;G.p.hp+=b.mhp;} if(b.mmp){G.p.mmp+=b.mmp;G.p.mp+=b.mmp;}
+  if(b.crit)G.p.critBonus=(G.p.critBonus||0)+b.crit;
+  sfx('levelup'); toast(`🌳 ${n.name} を強化！（${n.desc}）`);
+  updateUI(); fillTree(); saveGame(true);
+}
+function fillTree(){
+  const paths=['戦士','魔道','守護']; const col={'戦士':'#e8744a','魔道':'#a855f7','守護':'#4a8fe8'};
+  let html=`<div class="ininf" style="text-align:center;margin-bottom:10px">未使用スキルポイント：<b style="color:var(--gold);font-size:16px">${G.sp||0} SP</b><br><small>レベルアップで1SP獲得。3系統に振り分けてビルドを作ろう</small></div>`;
+  paths.forEach(p=>{
+    html+=`<div class="estt" style="margin:12px 0 6px;color:${col[p]}">― ${p}の道（振り分け ${pathSpent(p)}）―</div><div class="slist">`;
+    TREE.filter(n=>n.path===p).forEach(n=>{
+      const rank=(G.tree&&G.tree[n.id])||0; const maxed=rank>=n.max;
+      const locked=pathSpent(p)<n.tier;
+      html+=`<div class="si" onclick="allocNode('${n.id}')" style="opacity:${locked?0.5:1};border-color:${maxed?'var(--gold)':'var(--b1)'}">
+        <div class="siico">${locked?'🔒':n.icon}</div>
+        <div class="sii"><div class="sin">${n.name} <span style="color:var(--m2);font-size:10px">${rank}/${n.max}</span></div>
+          <div class="sid">${n.desc}${locked?`（${n.path}に${n.tier}pt必要）`:''}</div></div>
+        <div class="sip">${maxed?'MAX':'+'}</div></div>`;
+    });
+    html+='</div>';
+  });
+  document.getElementById('trbd').innerHTML=html;
+}
 const SLIME_NAMES=['スライム','みどりスライム','きいろスライム','どくスライム','ピンクスライム'];
 
 let _pendingRevive=false;
@@ -2353,6 +2520,16 @@ function battleWin(){
   const e=G.enemy;
   G.p.gold+=e.gold;gainXP(e.xp);
   recordKill(e);
+  // ── 多階層ダンジョン：勝利したらハブへ戻る ──
+  if(G.dungeon.active && e.dungeon){
+    if(G.dungeon.floor>G.dungeon.best){ G.dungeon.best=G.dungeon.floor; checkAchievements(); }
+    G.inBattle=false; sfx('victory'); partyBanter('win');
+    const loot=maybeDropLoot(e);
+    G.dungeon.msg=`✅ 地下${G.dungeon.floor}階の${e.name}を倒した！ XP+${e.xp} +${e.gold}G${loot}`;
+    setLog(G.dungeon.msg); updateUI(); saveGame(true);
+    setTimeout(()=>{ showDungeonHub(); },1200);
+    return;
+  }
   // ── 闘技場：連戦モード ──
   if(G.arena.active && e.arena){
     const cleared=G.arena.wave;
@@ -2361,7 +2538,8 @@ function battleWin(){
     G.p.hp=Math.min(G.p.mhp,G.p.hp+Math.floor(G.p.mhp*0.3));
     G.p.mp=Math.min(G.p.mmp,G.p.mp+Math.floor(G.p.mmp*0.3));
     sfx('victory'); partyBanter('win');
-    setLog(`✅ WAVE ${cleared} クリア！ <span class="hl">XP+${e.xp}</span> <span class="hl">+${e.gold}💰</span> HP/MP小回復。次のWAVEへ…`);
+    const aLoot=maybeDropLoot(e);
+    setLog(`✅ WAVE ${cleared} クリア！ <span class="hl">XP+${e.xp}</span> <span class="hl">+${e.gold}💰</span>${aLoot} HP/MP小回復。次のWAVEへ…`);
     updateBUI(); saveGame(true);
     setTimeout(()=>spawnArenaWave(),1300);
     return;
@@ -2408,6 +2586,7 @@ function battleWin(){
     const n=1+Math.floor(Math.random()*2); giveItem('uroko',n);
     dropMsg=` <span class="hl">🐉竜のうろこ×${n}</span>`;
   }
+  dropMsg+=maybeDropLoot(e); // ランダムレア装備ドロップ
   setLog(`${e.name}を倒した！ <span class="hl">XP+${e.xp}</span> <span class="hl">Gold+${e.gold}💰</span>${dropMsg}`);
   setTimeout(()=>{showScreen('gs');updateUI();renderMap();saveGame();playBGM('field');
     storyOnKill(e.name); pumpStory();
@@ -2459,6 +2638,7 @@ function battleLose(){
     updateBUI(); G.myTurn=true; return;
   }
   if(G.arena&&G.arena.active){ G.arena.active=false; toast(`🏟️ 闘技場 終了！ 最高到達 WAVE ${G.arena.best}`); saveGame(true); }
+  if(G.dungeon&&G.dungeon.active){ G.dungeon.active=false; toast(`🕳️ 地下${G.dungeon.floor}階で力尽きた…（最深 ${G.dungeon.best}階）`); saveGame(true); }
   G.inBattle=false;sfx('defeat');G.p.hp=Math.floor(G.p.mhp*.25);G.p.x=10;G.p.y=10;G.p.px=10;G.p.py=10;G.p.tx=10;G.p.ty=10;lastArriveKey='10,10';
   setLog('やられてしまった…はじまりの村に戻った。');
   setTimeout(()=>{showScreen('gs');updateUI();renderMap();playBGM('field');},1300);
@@ -2469,7 +2649,8 @@ function gainXP(amt){
   while(G.p.xp>=G.p.xpn){
     G.p.xp-=G.p.xpn;G.p.lv++;G.p.xpn=Math.floor(G.p.xpn*1.3);
     G.p.mhp+=24;G.p.hp=G.p.mhp;G.p.mmp+=12;G.p.mp=G.p.mmp;
-    G.p.atk+=6;G.p.def+=5;G.p.mag+=7;G.p.spd+=3;showLU();
+    G.p.atk+=6;G.p.def+=5;G.p.mag+=7;G.p.spd+=3;
+    G.sp=(G.sp||0)+1;showLU();
   }
 }
 
@@ -2501,6 +2682,7 @@ function closeM(id){document.getElementById(id).classList.remove('show');}
 
 function fillStatus(){
   const p=G.p;document.getElementById('slv').textContent=p.lv;
+  const spc=document.getElementById('spcount'); if(spc) spc.textContent=G.sp||0;
   document.getElementById('sgrid').innerHTML=[
     {l:'HP',v:`${p.hp}/${p.mhp}`},{l:'MP',v:`${p.mp}/${p.mmp}`},
     {l:'攻撃力',v:p.atk},{l:'防御力',v:p.def},{l:'魔法力',v:p.mag},{l:'素早さ',v:p.spd},
@@ -2579,7 +2761,7 @@ function toast(msg){
 }
 
 function saveGame(silent){
-  try{localStorage.setItem('et2sv',JSON.stringify({p:G.p,items:G.items,quests:G.quests,equip:G.equip,skills:G.skills,visited:[...G.visited],story:G.story,ownedWeapons:G.ownedWeapons,party:G.party,bounty:G.bounty,ach:G.ach,dex:G.dex,arena:{best:G.arena.best}}));if(!silent)toast('💾 セーブした！');}catch(e){}
+  try{localStorage.setItem('et2sv',JSON.stringify({p:G.p,items:G.items,quests:G.quests,equip:G.equip,skills:G.skills,visited:[...G.visited],story:G.story,ownedWeapons:G.ownedWeapons,party:G.party,bounty:G.bounty,ach:G.ach,dex:G.dex,arena:{best:G.arena.best},dungeon:{best:G.dungeon.best},sp:G.sp,tree:G.tree}));if(!silent)toast('💾 セーブした！');}catch(e){}
 }
 function loadSave(){
   try{const r=localStorage.getItem('et2sv');if(!r) return;const d=JSON.parse(r);
@@ -2596,6 +2778,9 @@ function loadSave(){
     if(d.ach)Object.assign(G.ach,d.ach);
     if(Array.isArray(d.dex))G.dex=d.dex;
     if(d.arena&&typeof d.arena.best==='number')G.arena.best=d.arena.best;
+    if(d.dungeon&&typeof d.dungeon.best==='number')G.dungeon.best=d.dungeon.best;
+    if(typeof d.sp==='number')G.sp=d.sp;
+    if(d.tree)G.tree=d.tree;
     if(d.visited)G.visited=new Set(d.visited);toast('📂 データを読み込んだ！');}catch(e){}
 }
 
