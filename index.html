@@ -355,7 +355,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="t-div"></div>
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.06.19-m</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.06.19-n</div>
 </div>
 
 <!-- GAME -->
@@ -590,7 +590,7 @@ function initAllyBattle(){
 }
 
 // ══════════ サウンド（WebAudioで合成・ファイル不要）══════════
-const AUDIO={ctx:null,master:null,muted:false,bgmTimer:null,bgmName:null};
+const AUDIO={ctx:null,master:null,bgmGain:null,muted:false,bgmTimer:null,bgmName:null};
 function audioInit(){
   try{
     if(!AUDIO.ctx){
@@ -599,11 +599,13 @@ function audioInit(){
       AUDIO.master=AUDIO.ctx.createGain();
       AUDIO.master.gain.value=AUDIO.muted?0:0.22;
       AUDIO.master.connect(AUDIO.ctx.destination);
+      // BGM専用バス（曲切替時に予約済みの音ごと遮断できるようにする）
+      AUDIO.bgmGain=AUDIO.ctx.createGain(); AUDIO.bgmGain.connect(AUDIO.master);
     }
     if(AUDIO.ctx.state==='suspended') AUDIO.ctx.resume();
   }catch(e){}
 }
-function tone(freq,dur,type,vol,when,slideTo){
+function tone(freq,dur,type,vol,when,slideTo,dest){
   if(!AUDIO.ctx||AUDIO.muted) return;
   const t=AUDIO.ctx.currentTime+(when||0);
   const o=AUDIO.ctx.createOscillator(), g=AUDIO.ctx.createGain();
@@ -611,9 +613,9 @@ function tone(freq,dur,type,vol,when,slideTo){
   if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo,t+dur);
   g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol||0.3,t+0.01);
   g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-  o.connect(g); g.connect(AUDIO.master); o.start(t); o.stop(t+dur+0.03);
+  o.connect(g); g.connect(dest||AUDIO.master); o.start(t); o.stop(t+dur+0.03);
 }
-function noise(dur,vol,when,lp){
+function noise(dur,vol,when,lp,dest){
   if(!AUDIO.ctx||AUDIO.muted) return;
   const t=AUDIO.ctx.currentTime+(when||0); const n=Math.max(1,Math.floor(AUDIO.ctx.sampleRate*dur));
   const buf=AUDIO.ctx.createBuffer(1,n,AUDIO.ctx.sampleRate); const d=buf.getChannelData(0);
@@ -621,7 +623,7 @@ function noise(dur,vol,when,lp){
   const src=AUDIO.ctx.createBufferSource(); src.buffer=buf;
   const f=AUDIO.ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=lp||2000;
   const g=AUDIO.ctx.createGain(); g.gain.value=vol||0.3;
-  src.connect(f); f.connect(g); g.connect(AUDIO.master); src.start(t);
+  src.connect(f); f.connect(g); g.connect(dest||AUDIO.master); src.start(t);
 }
 function sfx(name){
   if(!AUDIO.ctx||AUDIO.muted) return;
@@ -659,30 +661,31 @@ const BGMS={
 };
 // 和音パッド（ベース音の上にルート8va＋5度＋オクターブを重ねて厚みを出す）
 function chordPad(root,dur,when,vol){
-  if(!root) return;
-  tone(root*2,            dur,'triangle',vol,      when);
-  tone(root*2*1.49831,    dur,'triangle',vol*0.75, when); // 完全5度
-  tone(root*4,            dur,'sine',    vol*0.55, when); // オクターブ上
+  if(!root) return; const B=AUDIO.bgmGain;
+  tone(root*2,            dur,'triangle',vol,      when,0,B);
+  tone(root*2*1.49831,    dur,'triangle',vol*0.75, when,0,B); // 完全5度
+  tone(root*4,            dur,'sine',    vol*0.55, when,0,B); // オクターブ上
 }
 // ドラム（キック＝低い正弦のスライド／ハイハット＝短いノイズ／スネア＝中域ノイズ）
-function drumKick(when){ tone(120,0.13,'sine',0.5,when,45); noise(0.05,0.18,when,350); }
-function drumHat(when){ noise(0.025,0.07,when,9000); }
-function drumSnare(when){ noise(0.12,0.22,when,3500); tone(180,0.08,'triangle',0.12,when); }
+function drumKick(when){ const B=AUDIO.bgmGain; tone(120,0.13,'sine',0.5,when,45,B); noise(0.05,0.18,when,350,B); }
+function drumHat(when){ noise(0.025,0.07,when,9000,AUDIO.bgmGain); }
+function drumSnare(when){ const B=AUDIO.bgmGain; noise(0.12,0.22,when,3500,B); tone(180,0.08,'triangle',0.12,when,0,B); }
 function playBGM(name){
   stopBGM(); AUDIO.bgmName=name;
   if(!AUDIO.ctx||AUDIO.muted) return;
   const def=BGMS[name]; if(!def) return; const beat=60/def.tempo;
   const loop=()=>{
     if(AUDIO.bgmName!==name||AUDIO.muted||!AUDIO.ctx) return;
+    const B=AUDIO.bgmGain;
     // メロディ：主旋律＋1オクターブ下のハモリ＋わずかにデチューンして厚みを出す
     let t=0; def.lead.forEach(([f,d])=>{ if(f){
       const dur=beat*d*0.9;
-      tone(f,        dur,def.leadType,0.13,t);
-      tone(f*1.002,  dur,def.leadType,0.05,t);   // デチューン重ね
-      tone(f/2,      dur,'triangle',  0.045,t);  // オクターブ下のハモリ
+      tone(f,        dur,def.leadType,0.13,t,0,B);
+      tone(f*1.002,  dur,def.leadType,0.05,t,0,B);   // デチューン重ね
+      tone(f/2,      dur,'triangle',  0.045,t,0,B);  // オクターブ下のハモリ
     } t+=beat*d; });
     // ベース＋和音パッド
-    let tb=0; def.bass.forEach(([f,d])=>{ if(f){ tone(f,beat*d*0.95,'sine',0.16,tb); chordPad(f,beat*d*0.95,tb,0.035); } tb+=beat*d; });
+    let tb=0; def.bass.forEach(([f,d])=>{ if(f){ tone(f,beat*d*0.95,'sine',0.16,tb,0,B); chordPad(f,beat*d*0.95,tb,0.035); } tb+=beat*d; });
     // ドラム：1小節分をビート単位で刻む
     const bars=def.bass.reduce((s,[,d])=>s+d,0);
     if(def.drum&&def.drum!=='none'){
@@ -697,7 +700,12 @@ function playBGM(name){
   };
   loop();
 }
-function stopBGM(){ if(AUDIO.bgmTimer){ clearTimeout(AUDIO.bgmTimer); AUDIO.bgmTimer=null; } }
+function stopBGM(){
+  if(AUDIO.bgmTimer){ clearTimeout(AUDIO.bgmTimer); AUDIO.bgmTimer=null; }
+  // 予約済みのBGM音を即座に遮断：バスを差し替える
+  if(AUDIO.ctx&&AUDIO.bgmGain){ try{AUDIO.bgmGain.disconnect();}catch(e){}
+    AUDIO.bgmGain=AUDIO.ctx.createGain(); AUDIO.bgmGain.connect(AUDIO.master); }
+}
 function toggleMute(){
   AUDIO.muted=!AUDIO.muted;
   try{ localStorage.setItem('et2mute', AUDIO.muted?'1':'0'); }catch(e){}
