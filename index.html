@@ -311,7 +311,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 .ballies{position:absolute;left:6px;top:64px;display:flex;flex-direction:column;gap:5px;z-index:3;pointer-events:none}
 .ballyc{display:flex;align-items:center;gap:5px;background:rgba(7,9,15,.72);border:1px solid var(--b2);border-radius:9px;padding:2px 7px 2px 2px;box-shadow:0 2px 6px rgba(0,0,0,.4)}
 .ballyc img{width:28px;height:28px;border-radius:6px;object-fit:cover;object-position:top center;border:1px solid var(--b1)}
-.ballyc .bnm{font-size:9px;font-weight:700;color:var(--text)}
+.ballyc.down{opacity:.4;filter:grayscale(1)}
+.ballyc .binfo{display:flex;flex-direction:column;gap:2px}
+.ballyc .bnm{font-size:9px;font-weight:700;color:var(--text);white-space:nowrap}
+.ballyc .bhpb{width:54px;height:4px;background:#0a1020;border-radius:3px;overflow:hidden;border:1px solid var(--b1)}
+.ballyc .bhpf{height:100%;background:linear-gradient(90deg,#2a7a3a,#27c96a);border-radius:3px;transition:width .4s}
 .chant-skip{position:absolute;bottom:22px;right:16px;z-index:3;background:rgba(0,0,0,.5);
   border:1px solid var(--muted);color:var(--m2);padding:7px 14px;border-radius:14px;font-size:11px;cursor:pointer}
 .chant-hint{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:3;
@@ -328,7 +332,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="t-div"></div>
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.06.19-a</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.06.19-b</div>
 </div>
 
 <!-- GAME -->
@@ -522,11 +526,16 @@ const ALLY_MAGE=new Image();   ALLY_MAGE.src="assets/ally_mage.png";
 const ALLY_PRIEST=new Image(); ALLY_PRIEST.src="assets/ally_priest.png";
 const ALLY_IMGS={archer:ALLY_ARCHER,knight:ALLY_KNIGHT,mage:ALLY_MAGE,priest:ALLY_PRIEST};
 const ALLIES={
-  archer:{id:'archer',name:'リーフ',  role:'弓使い',img:'archer',cost:1200,atk:24,mag:0, kind:'phys',desc:'素早い弓で敵を狙撃する'},
-  knight:{id:'knight',name:'セレナ',  role:'女騎士',img:'knight',cost:1800,atk:32,mag:0, kind:'phys',desc:'重い一撃で敵を打ち砕く'},
-  mage:  {id:'mage',  name:'ヴェル',  role:'魔道士',img:'mage',  cost:2200,atk:0, mag:38,kind:'mag', desc:'闇の魔法で大ダメージを与える'},
-  priest:{id:'priest',name:'フィーナ',role:'僧侶',  img:'priest',cost:1600,atk:0, mag:22,kind:'heal',desc:'HPを回復し、時に聖光で攻撃'},
+  archer:{id:'archer',name:'リーフ',  role:'弓使い',img:'archer',cost:1200,atk:24,mag:0, def:8, hp:85, kind:'phys',desc:'素早い弓で敵を狙撃する'},
+  knight:{id:'knight',name:'セレナ',  role:'女騎士',img:'knight',cost:1800,atk:32,mag:0, def:22,hp:140,kind:'phys',desc:'重い一撃で敵を打ち砕く盾役'},
+  mage:  {id:'mage',  name:'ヴェル',  role:'魔道士',img:'mage',  cost:2200,atk:0, mag:38,def:5, hp:70, kind:'mag', desc:'闇の魔法で大ダメージを与える'},
+  priest:{id:'priest',name:'フィーナ',role:'僧侶',  img:'priest',cost:1600,atk:0, mag:22,def:7, hp:80, kind:'heal',desc:'HPを回復・蘇生し、時に聖光で攻撃'},
 };
+function allyMax(a){ return Math.floor(a.hp*(1+Math.min(G.p.lv,12)*0.18)); }
+function initAllyBattle(){
+  G.abt={};
+  (G.party||[]).forEach(id=>{ const a=ALLIES[id]; if(!a) return; const m=allyMax(a); G.abt[id]={hp:m,mhp:m,down:false}; });
+}
 
 // 最初から全員が持っている特別呪文（既存セーブにも自動付与）
 const BONUS_SKILLS=[
@@ -590,21 +599,25 @@ const STORY_INTRO=[
     {img:'gaston',who:'村長 ガストン',text:'女神の神託があった。「星辰のかけらを集めし者よ、神殿にて滅びの竜を討て」…とな。お前にしか託せぬ。'},
     {face:'🧙',who:'アルシア',text:'私が…。わかりました。女神の加護を受けたこの剣に懸けて、世界を救ってみせます。'},
     {face:'🌲',who:'',text:'【目的】まずは東の森へ向かい、異変を調べよう。'},
+    {img:'priest',who:'僧侶 フィーナ',text:'アルシア様、私もお供します。傷ついた時は、この力でお守りいたします。 ――🤝 フィーナが仲間に加わった！'},
   ],
   [ // 1 森
     {img:'sage',who:'森の賢者',text:'よく来たな、星辰の担い手よ。この森の奥に、最初の「星辰のかけら」が眠っている。'},
     {img:'sage',who:'森の賢者',text:'だが今は魔物――とりわけゴブリンどもが守りを固めておる。奴らを退ければ、かけらは姿を現すだろう。'},
     {face:'⚔️',who:'',text:'【目的】森でゴブリンを3体倒せ。'},
+    {img:'archer',who:'弓使い リーフ',text:'苦戦してるみたいだな。俺の弓が役に立つはずだ。一緒に行こうぜ！ ――🤝 リーフが仲間に加わった！'},
   ],
   [ // 2 銀嶺
     {face:'🏔️',who:'',text:'― 第二章 銀嶺の試練 ―'},
     {face:'🧙',who:'アルシア',text:'銀嶺山脈…身を切る寒さ。でも、ここで強くならなければ、この先には進めない。'},
     {face:'⚔️',who:'',text:'【目的】魔物と戦い、Lv6 まで力をつけよ。'},
+    {img:'knight',who:'女騎士 セレナ',text:'危ないところでしたね。私の剣、あなたの旅に捧げましょう。 ――🤝 セレナが仲間に加わった！'},
   ],
   [ // 3 洞窟
     {face:'🕳️',who:'',text:'― 第三章 深淵の主 ―'},
     {img:'ragan',who:'傭兵 ラガン',text:'洞窟の主か…俺でも勝てなかった相手だ。だが今のお前なら――いや、お前にしか倒せん。頼んだぞ。'},
     {face:'⚔️',who:'',text:'【目的】暗黒の洞窟に入り、洞窟の主を討て。'},
+    {img:'mage',who:'魔道士 ヴェル',text:'……助かった。礼の代わりだ、この闇の魔法、貴公のために振るおう。 ――🤝 ヴェルが仲間に加わった！'},
   ],
   [ // 4 神殿
     {face:'⛩️',who:'',text:'― 終章 神殿の決戦 ―'},
@@ -667,6 +680,13 @@ function updateStoryUI(){
   el.innerHTML=`📖 <b>${STORY_TITLE[st.idx]}</b> ｜ ${STORY_OBJ[st.idx]} ｜ ✨${st.frags}/3`;
 }
 
+// 章ごとの仲間加入（カットシーンで合流）
+const STORY_JOIN={0:'priest',1:'archer',2:'knight',3:'mage'};
+function joinForChapter(idx){
+  const id=STORY_JOIN[idx];
+  if(id && ALLIES[id] && !G.party.includes(id)){ G.party.push(id); }
+}
+
 // 章を進める（アウトロ→かけら→次章イントロ）
 function storyAdvance(){
   const i=G.story.idx;
@@ -677,6 +697,7 @@ function storyAdvance(){
     const ni=G.story.idx;
     if(ni<STORY_INTRO.length && !G.story.introShown[ni]){
       G.story.introShown[ni]=true;
+      joinForChapter(ni);
       showCutscene(STORY_INTRO[ni],()=>{updateStoryUI();saveGame(true);pumpStory();});
     } else {updateStoryUI();saveGame(true);pumpStory();}
   };
@@ -919,6 +940,22 @@ function renderMap(){
     }
   }
 
+  // 仲間（隊列追従：主人公の軌跡を一定間隔で辿る）
+  const GAP=9;
+  (G.party||[]).forEach((id,i)=>{
+    const a=ALLIES[id]; if(!a) return;
+    const im=ALLY_IMGS[a.img]; if(!im||!im.complete||!im.naturalWidth) return;
+    const t=_trail[Math.min(_trail.length-1,(i+1)*GAP)]; if(!t) return;
+    const apx=t.x*TS-camX, apy=t.y*TS-camY;
+    if(apx<-TS*2||apx>W+TS||apy<-TS*2||apy>H+TS) return;
+    const sh=TS*1.25, sw=sh*(im.naturalWidth/im.naturalHeight);
+    const bob=Math.sin(Date.now()/220+i*1.3)*2;
+    mctx.save(); mctx.fillStyle='rgba(0,0,0,.4)';
+    mctx.beginPath(); mctx.ellipse(apx+TS/2,apy+TS-2,TS*.28,5,0,0,Math.PI*2); mctx.fill(); mctx.restore();
+    if(t.face==='left'){ mctx.save(); mctx.translate(apx+TS/2,0); mctx.scale(-1,1); mctx.drawImage(im,-sw/2,apy+TS-sh-bob,sw,sh); mctx.restore(); }
+    else { mctx.drawImage(im,apx+TS/2-sw/2,apy+TS-sh-bob,sw,sh); }
+  });
+
   // Player（アニメスプライト + 歩行アニメ）
   const ppx=wpx-camX, ppy=wpy-camY;
   const moving=Math.abs(p.px-p.tx)>0.01||Math.abs(p.py-p.ty)>0.01;
@@ -1060,6 +1097,7 @@ function gameLoop(){
     const dx=p.tx-p.px, dy=p.ty-p.py;
     if(Math.abs(dx)>0.01||Math.abs(dy)>0.01){
       p.px+=dx*speed; p.py+=dy*speed;
+      _trail.unshift({x:p.px,y:p.py,face:p.face}); if(_trail.length>140) _trail.pop();
       if(Math.abs(p.tx-p.px)<0.02&&Math.abs(p.ty-p.py)<0.02){
         p.px=p.tx; p.py=p.ty;
         const key=p.tx+','+p.ty;
@@ -1073,6 +1111,9 @@ function gameLoop(){
   }
   requestAnimationFrame(gameLoop);
 }
+
+// 仲間の隊列追従用：主人公の軌跡
+let _trail=[];
 
 // ── 入力ハンドラ（押した瞬間1歩 / 長押しで連続）──
 let holdDir=null;
@@ -1461,7 +1502,7 @@ function triggerBattle(boss=false){
   G.enemy={...base,hp:Math.floor(base.mhp*hpSc),mhp:Math.floor(base.mhp*hpSc),
     atk:Math.floor(base.atk*atkSc),def:Math.floor(base.def*defSc),
     xp:Math.floor(base.xp*rwSc),gold:Math.floor(base.gold*rwSc),status:[]};
-  G.inBattle=true;G.myTurn=true;G.buffs={};
+  G.inBattle=true;G.myTurn=true;G.buffs={};initAllyBattle();
   updateBUI();setLog(`${G.enemy.name}があらわれた！`);showScreen('bs');
   // Battle bg particles
   const bg=document.getElementById('bbg');bg.innerHTML='';
@@ -1490,7 +1531,7 @@ function triggerFinalBoss(){
   const n=G.story.bossKills||0, s=bossStats(n);
   const base={name:'滅びの竜 ヴァルガ'+(n?` ＋${n}`:''),img:'e_dragon',icon:'🐉',lv:15+n*3,boss:true,...s};
   G.enemy={...base,hp:base.mhp,status:[],final:true};
-  G.inBattle=true;G.myTurn=true;G.buffs={};
+  G.inBattle=true;G.myTurn=true;G.buffs={};initAllyBattle();
   updateBUI();setLog(n?`甦りし滅びの竜ヴァルガ＋${n}が立ちはだかる！`:'滅びの竜ヴァルガが立ちはだかる！世界の命運は、お前に懸かっている！');showScreen('bs');
   const bg=document.getElementById('bbg');bg.innerHTML='';
   for(let i=0;i<12;i++){const d=document.createElement('div');d.className='bp';const sz=Math.random()*70+20;
@@ -1517,7 +1558,13 @@ function updateBUI(){
   document.getElementById('ehtx').textContent=`HP: ${e.hp}/${e.mhp}`;
   document.getElementById('sbdg').innerHTML=(e.status||[]).map(s=>`<span class="sb sb-${s==='poison'?'p':s==='slow'?'s':'b'}">${{poison:'☠️毒',slow:'🧊遅延',burn:'🔥炎上'}[s]||s}</span>`).join('');
   const ba=document.getElementById('ballies');
-  if(ba){ ba.innerHTML=(G.party||[]).map(id=>{const a=ALLIES[id];if(!a)return '';const im=ALLY_IMGS[a.img];return `<div class="ballyc"><img src="${im?im.src:''}"><span class="bnm">${a.name}</span></div>`;}).join(''); }
+  if(ba){ ba.innerHTML=(G.party||[]).map(id=>{
+    const a=ALLIES[id]; if(!a) return '';
+    const im=ALLY_IMGS[a.img]; const st=G.abt&&G.abt[id];
+    const pct=st?Math.max(0,st.hp/st.mhp*100):100;
+    const down=st&&st.down;
+    return `<div class="ballyc${down?' down':''}"><img src="${im?im.src:''}"><div class="binfo"><span class="bnm">${a.name}${down?' (戦闘不能)':''}</span><div class="bhpb"><div class="bhpf" style="width:${pct}%"></div></div></div></div>`;
+  }).join(''); }
 }
 
 function setLog(msg){document.getElementById('blog').innerHTML=msg;}
@@ -1646,12 +1693,26 @@ function tryRun(){
 
 function allyTurns(){
   const e=G.enemy, eff=Math.min(G.p.lv,12), sc=1+eff*0.12; let parts=[];
+  if(!G.abt) initAllyBattle();
   G.party.forEach(id=>{
     if(!G.inBattle||e.hp<=0) return;
     const a=ALLIES[id]; if(!a) return;
+    const st=G.abt[id]; if(!st||st.down) return; // 戦闘不能はスキップ
     if(a.kind==='heal'){
-      if(G.p.hp < G.p.mhp*0.6){ const h=Math.floor((40+a.mag*2)*sc); G.p.hp=Math.min(G.p.mhp,G.p.hp+h); popDmg('+'+h,'#27c96a',true); parts.push(`${a.name}の回復(HP+${h})`); }
-      else { const d=Math.max(1,Math.floor(a.mag*sc)-Math.floor(e.def*.2)); e.hp=Math.max(0,e.hp-d); popDmg(d,'#ffd24a',false); parts.push(`${a.name}の聖光(${d})`); }
+      // 1) 戦闘不能の仲間がいれば蘇生
+      const downId=G.party.find(x=>G.abt[x]&&G.abt[x].down);
+      if(downId){ const dm=G.abt[downId]; dm.down=false; dm.hp=Math.floor(dm.mhp*0.4); popDmg('蘇生','#ffd24a',true); parts.push(`${a.name}が${ALLIES[downId].name}を蘇生！`); return; }
+      // 2) 最も傷ついた味方（主人公含む）を回復
+      const ratios=[{who:'hero',r:G.p.hp/G.p.mhp}].concat(G.party.filter(x=>G.abt[x]&&!G.abt[x].down).map(x=>({who:x,r:G.abt[x].hp/G.abt[x].mhp})));
+      ratios.sort((p,q)=>p.r-q.r);
+      const low=ratios[0];
+      if(low.r<0.6){ const h=Math.floor((40+a.mag*2)*sc);
+        if(low.who==='hero'){ G.p.hp=Math.min(G.p.mhp,G.p.hp+h); popDmg('+'+h,'#27c96a',true); }
+        else { const dm=G.abt[low.who]; dm.hp=Math.min(dm.mhp,dm.hp+h); popDmg('+'+h,'#27c96a',true); }
+        parts.push(`${a.name}の回復(HP+${h})`); return;
+      }
+      // 3) 余裕があれば聖光で攻撃
+      const d=Math.max(1,Math.floor(a.mag*sc)-Math.floor(e.def*.2)); e.hp=Math.max(0,e.hp-d); popDmg(d,'#ffd24a',false); parts.push(`${a.name}の聖光(${d})`);
     } else if(a.kind==='mag'){
       const d=Math.max(1,Math.floor(a.mag*1.7*sc)-Math.floor(e.def*.2)); e.hp=Math.max(0,e.hp-d); popDmg(d,'#a855f7',false); parts.push(`${a.name}の魔法(${d})`);
     } else {
@@ -1673,12 +1734,26 @@ function enemyAct(){
   if(!G.inBattle) return;
   const p=G.p,e=G.enemy;
   if(e.status?.includes('slow')&&Math.random()<.4){setLog(`🧊 ${e.name}は動きが遅い！`);G.myTurn=true;updateBUI();if(G.buffs.shield)G.buffs.shield--;return;}
-  const def=p.def+(G.buffs.shield>0?25:0);if(G.buffs.shield>0)G.buffs.shield--;
-  const dmg=Math.max(1,e.atk-Math.floor(def*.45)+Math.floor(Math.random()*6));
-  p.hp=Math.max(0,p.hp-dmg);
-  setLog(`${e.name}のこうげき！アルシアに<span class="hl">${dmg}</span>ダメージ！`);
-  popDmg(dmg,'#e84a4a',true);updateBUI();
-  if(p.hp<=0){battleLose();return;}
+  // ターゲット選択（主人公を狙いやすいが、生存中の仲間も狙う）
+  const targets=[{type:'hero',w:3}];
+  (G.party||[]).forEach(id=>{ if(G.abt&&G.abt[id]&&!G.abt[id].down) targets.push({type:'ally',id,w:1}); });
+  let tw=targets.reduce((s,t)=>s+t.w,0), rr=Math.random()*tw, tgt=targets[0];
+  for(const t of targets){ if((rr-=t.w)<0){ tgt=t; break; } }
+  if(tgt.type==='hero'){
+    const def=p.def+(G.buffs.shield>0?25:0);if(G.buffs.shield>0)G.buffs.shield--;
+    const dmg=Math.max(1,e.atk-Math.floor(def*.45)+Math.floor(Math.random()*6));
+    p.hp=Math.max(0,p.hp-dmg);
+    setLog(`${e.name}のこうげき！アルシアに<span class="hl">${dmg}</span>ダメージ！`);
+    popDmg(dmg,'#e84a4a',true);updateBUI();
+    if(p.hp<=0){battleLose();return;}
+  } else {
+    const a=ALLIES[tgt.id], st=G.abt[tgt.id];
+    const dmg=Math.max(1,Math.floor(e.atk*0.8)-a.def+Math.floor(Math.random()*6));
+    st.hp=Math.max(0,st.hp-dmg); popDmg(dmg,'#e84a4a',true);
+    if(st.hp<=0){ st.down=true; setLog(`${e.name}の攻撃！<span class="hl">${a.name}</span>は倒れてしまった…！`); }
+    else setLog(`${e.name}のこうげき！${a.name}に<span class="hl">${dmg}</span>ダメージ！`);
+    updateBUI();
+  }
   if(G.buffs.collapse>0){
     G.buffs.collapse--;
     setLog('アルシアは魔力を使い果たして倒れ込み、動けない…！');
@@ -1926,6 +2001,7 @@ function startGame(){
   updateStoryUI();
   if(G.story.idx===0 && !G.story.introShown[0]){
     G.story.introShown[0]=true;
+    joinForChapter(0);
     showCutscene(STORY_INTRO[0],()=>{updateStoryUI();saveGame(true);});
   } else { pumpStory(); }
 }
