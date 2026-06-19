@@ -306,6 +306,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 .chant-tx.final{font-size:clamp(28px,9vw,40px);color:#fff;letter-spacing:2px;
   text-shadow:0 0 26px rgba(255,120,20,1),0 0 46px rgba(255,60,0,.85)}
 @keyframes chln{from{opacity:0;transform:translateY(16px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+/* BATTLE ALLIES */
+.ballies{position:absolute;left:6px;top:64px;display:flex;flex-direction:column;gap:5px;z-index:3;pointer-events:none}
+.ballyc{display:flex;align-items:center;gap:5px;background:rgba(7,9,15,.72);border:1px solid var(--b2);border-radius:9px;padding:2px 7px 2px 2px;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.ballyc img{width:28px;height:28px;border-radius:6px;object-fit:cover;object-position:top center;border:1px solid var(--b1)}
+.ballyc .bnm{font-size:9px;font-weight:700;color:var(--text)}
 .chant-skip{position:absolute;bottom:22px;right:16px;z-index:3;background:rgba(0,0,0,.5);
   border:1px solid var(--muted);color:var(--m2);padding:7px 14px;border-radius:14px;font-size:11px;cursor:pointer}
 .chant-hint{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:3;
@@ -322,7 +328,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="t-div"></div>
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.06.18-c</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.06.19-a</div>
 </div>
 
 <!-- GAME -->
@@ -398,6 +404,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
     <div class="sbdg" id="sbdg"></div>
   </div>
   <img id="hero-battle-img" alt="アルシア" style="position:absolute;left:6%;bottom:120px;height:240px;z-index:3;filter:drop-shadow(0 6px 16px rgba(0,0,0,.6));pointer-events:none;transition:transform .12s">
+  <div class="ballies" id="ballies"></div>
   <div class="blw"><div class="blog" id="blog">戦闘開始！</div></div>
   <div class="bact">
     <button class="bb bba" onclick="doAtk()">⚔️ こうげき</button>
@@ -508,6 +515,19 @@ const ENEMY_S_PURPLE=new Image(); ENEMY_S_PURPLE.src="assets/slime_purple.png";
 const ENEMY_S_PINK=new Image(); ENEMY_S_PINK.src="assets/slime_pink.png";
 const ENEMY_IMGS={e_bat:ENEMY_E_BAT,e_goblin:ENEMY_E_GOBLIN,e_skeleton:ENEMY_E_SKELETON,e_orc:ENEMY_E_ORC,e_knight:ENEMY_E_KNIGHT,e_dragon:ENEMY_E_DRAGON,e_lord:ENEMY_E_LORD,s_blue:ENEMY_S_BLUE,s_green:ENEMY_S_GREEN,s_yellow:ENEMY_S_YELLOW,s_purple:ENEMY_S_PURPLE,s_pink:ENEMY_S_PINK};
 
+// 仲間キャラ
+const ALLY_ARCHER=new Image(); ALLY_ARCHER.src="assets/ally_archer.png";
+const ALLY_KNIGHT=new Image(); ALLY_KNIGHT.src="assets/ally_knight.png";
+const ALLY_MAGE=new Image();   ALLY_MAGE.src="assets/ally_mage.png";
+const ALLY_PRIEST=new Image(); ALLY_PRIEST.src="assets/ally_priest.png";
+const ALLY_IMGS={archer:ALLY_ARCHER,knight:ALLY_KNIGHT,mage:ALLY_MAGE,priest:ALLY_PRIEST};
+const ALLIES={
+  archer:{id:'archer',name:'リーフ',  role:'弓使い',img:'archer',cost:1200,atk:24,mag:0, kind:'phys',desc:'素早い弓で敵を狙撃する'},
+  knight:{id:'knight',name:'セレナ',  role:'女騎士',img:'knight',cost:1800,atk:32,mag:0, kind:'phys',desc:'重い一撃で敵を打ち砕く'},
+  mage:  {id:'mage',  name:'ヴェル',  role:'魔道士',img:'mage',  cost:2200,atk:0, mag:38,kind:'mag', desc:'闇の魔法で大ダメージを与える'},
+  priest:{id:'priest',name:'フィーナ',role:'僧侶',  img:'priest',cost:1600,atk:0, mag:22,kind:'heal',desc:'HPを回復し、時に聖光で攻撃'},
+};
+
 // 最初から全員が持っている特別呪文（既存セーブにも自動付与）
 const BONUS_SKILLS=[
   {id:'puruputen',name:'パルプンテ',icon:'🌀',desc:'何が起こるか分からない…',mp:15,pow:0,t:'random'},
@@ -527,6 +547,7 @@ const G={
   ],
   equip:{weapon:{id:'iron',name:'鉄の剣',icon:'🗡️',stat:'標準装備',atk:0,mag:0},armor:{name:'革の鎧',icon:'🛡️',stat:'DEF+5'},acc:{name:'魔力の指輪',icon:'💍',stat:'MAG+6'}},
   ownedWeapons:[],
+  party:[],
   skills:[
     {id:'slash',name:'魔法斬り',icon:'🗡️',desc:'魔力乗せ斬撃',mp:8,pow:40,t:'atk'},
     {id:'fire',name:'ファイアボール',icon:'🔥',desc:'炎の球',mp:12,pow:55,t:'atk'},
@@ -702,6 +723,7 @@ const BUILDINGS=[
   {x:11,y:5,icon:'',name:'魔法ギルド',sub:'スキルを磨け',type:'guild',r:1.8},
   {x:7,y:11,icon:'',name:'道具屋 マルクの露店',sub:'冒険の必需品',type:'tavern',r:1.6},
   {x:13,y:8,icon:'🎰',name:'星辰のガチャ堂',sub:'運命の武器を引け',type:'gacha',r:1.5},
+  {x:12,y:11,icon:'🍻',name:'仲間の酒場',sub:'頼れる仲間を集めよ',type:'recruit',r:1.5},
   // 村外（各エリア背景の上）
   {x:26,y:8,icon:'🌲',name:'森の隠れ家',sub:'旅人の休憩所',type:'inn',r:1.4},
   {x:30,y:30,icon:'⛩️',name:'古の神殿',sub:'謎が眠る場所',type:'temple',r:1.6},
@@ -967,7 +989,7 @@ function checkNearby(){
   const ep=document.getElementById('ep');
   if(nb){
     ep.style.display='block';ep.dataset.bid=BUILDINGS.indexOf(nb);
-    const ti={inn:'🛏️',weapon:'⚔️',armor:'🛡️',guild:'✨',tavern:'🍺',temple:'⛩️',dungeon:'💀',gacha:'🎰'}[nb.type]||'🚪';
+    const ti={inn:'🛏️',weapon:'⚔️',armor:'🛡️',guild:'✨',tavern:'🍺',temple:'⛩️',dungeon:'💀',gacha:'🎰',recruit:'🍻'}[nb.type]||'🚪';
     ep.innerHTML=`${ti} ${nb.name} に入る`;
   }
   else ep.style.display='none';
@@ -1246,6 +1268,20 @@ function renderContent(b){
     }
     el.innerHTML=html;return;
   }
+  if(b.type==='recruit'){
+    const cards=Object.values(ALLIES).map(a=>{
+      const joined=G.party.includes(a.id);
+      const im=ALLY_IMGS[a.img];
+      const statTxt=a.kind==='heal'?`回復役 / 魔力${a.mag}`:a.kind==='mag'?`魔法 / 魔力${a.mag}`:`物理 / 攻撃${a.atk}`;
+      return `<div class="si" style="border-color:${joined?'var(--gold)':'var(--b1)'}">
+        <div class="siico"><img src="${im?im.src:''}" style="height:46px;width:auto;display:block;border-radius:6px"></div>
+        <div class="sii"><div class="sin">${a.name}<span style="color:var(--m2);font-size:10px"> / ${a.role}</span></div><div class="sid">${a.desc}（${statTxt}）</div></div>
+        ${joined?`<button class="bkb" style="margin:0" onclick="dismissAlly('${a.id}')">外す</button>`:`<div class="sip" onclick="recruitAlly('${a.id}')" style="cursor:pointer">${a.cost}G<br><small style="font-size:9px;color:var(--green)">仲間にする</small></div>`}
+      </div>`;
+    }).join('');
+    el.innerHTML=`<div class="ininf" style="text-align:left;margin-bottom:10px">頼れる仲間を雇おう。仲間は戦闘で<b style="color:var(--gold)">毎ターン自動で加勢</b>してくれる。<br>現在の仲間: ${G.party.length}人　所持金: ${G.p.gold}G</div><div class="slist">${cards}</div>`;
+    return;
+  }
   if(b.type==='gacha'){
     el.innerHTML=`<div class="ininf" style="text-align:left;margin-bottom:10px">星辰の力で武器を引き当てる。<b style="color:var(--gold)">最上位の武器はここでしか手に入らない。</b><br>✨確率: <span style="color:#ffd24a">UR 1%</span> / <span style="color:#a855f7">SSR 9%</span> / <span style="color:#4a8fe8">SR 32%</span> / R 58%<br>所持金: ${G.p.gold}G</div>
       <div class="innbtn" onclick="rollGacha(1)">🎰 単発を引く（500G）</div>
@@ -1334,6 +1370,19 @@ function renderOwnedWeapons(){
   }).join('')||'<div class="ininf">まだ武器が無い。ガチャを引こう！</div>';
 }
 function equipOwned(i){ const w=G.ownedWeapons[i]; if(!w) return; equipWeapon(w); toast(`⚔️ ${w.name}を装備した！`); renderOwnedWeapons(); }
+
+// ── 仲間 ──
+function recruitAlly(id){
+  const a=ALLIES[id]; if(!a) return;
+  if(G.party.includes(id)){ toast('もう仲間だ！'); return; }
+  if(G.p.gold<a.cost){ toast('ゴールドが足りない！'); return; }
+  G.p.gold-=a.cost; G.party.push(id);
+  toast(`🤝 ${a.name}が仲間になった！`); updateUI(); renderContent(G.curB); saveGame(true);
+}
+function dismissAlly(id){
+  G.party=G.party.filter(x=>x!==id);
+  const a=ALLIES[id]; toast(`${a?a.name:'仲間'}はパーティを離れた`); updateUI(); renderContent(G.curB); saveGame(true);
+}
 function applyStats(sa){
   if(sa.atk)G.p.atk+=sa.atk;if(sa.def)G.p.def+=sa.def;if(sa.mag)G.p.mag+=sa.mag;if(sa.spd)G.p.spd+=sa.spd;
   if(sa.mhp){G.p.mhp+=sa.mhp;G.p.hp+=sa.mhp;}if(sa.mmp){G.p.mmp+=sa.mmp;G.p.mp+=sa.mmp;}
@@ -1467,6 +1516,8 @@ function updateBUI(){
   document.getElementById('ehf').style.width=(e.hp/e.mhp*100)+'%';
   document.getElementById('ehtx').textContent=`HP: ${e.hp}/${e.mhp}`;
   document.getElementById('sbdg').innerHTML=(e.status||[]).map(s=>`<span class="sb sb-${s==='poison'?'p':s==='slow'?'s':'b'}">${{poison:'☠️毒',slow:'🧊遅延',burn:'🔥炎上'}[s]||s}</span>`).join('');
+  const ba=document.getElementById('ballies');
+  if(ba){ ba.innerHTML=(G.party||[]).map(id=>{const a=ALLIES[id];if(!a)return '';const im=ALLY_IMGS[a.img];return `<div class="ballyc"><img src="${im?im.src:''}"><span class="bnm">${a.name}</span></div>`;}).join(''); }
 }
 
 function setLog(msg){document.getElementById('blog').innerHTML=msg;}
@@ -1593,7 +1644,32 @@ function tryRun(){
   else{setLog('逃げられなかった！');setTimeout(enemyTurn,800);}
 }
 
+function allyTurns(){
+  const e=G.enemy, eff=Math.min(G.p.lv,12), sc=1+eff*0.12; let parts=[];
+  G.party.forEach(id=>{
+    if(!G.inBattle||e.hp<=0) return;
+    const a=ALLIES[id]; if(!a) return;
+    if(a.kind==='heal'){
+      if(G.p.hp < G.p.mhp*0.6){ const h=Math.floor((40+a.mag*2)*sc); G.p.hp=Math.min(G.p.mhp,G.p.hp+h); popDmg('+'+h,'#27c96a',true); parts.push(`${a.name}の回復(HP+${h})`); }
+      else { const d=Math.max(1,Math.floor(a.mag*sc)-Math.floor(e.def*.2)); e.hp=Math.max(0,e.hp-d); popDmg(d,'#ffd24a',false); parts.push(`${a.name}の聖光(${d})`); }
+    } else if(a.kind==='mag'){
+      const d=Math.max(1,Math.floor(a.mag*1.7*sc)-Math.floor(e.def*.2)); e.hp=Math.max(0,e.hp-d); popDmg(d,'#a855f7',false); parts.push(`${a.name}の魔法(${d})`);
+    } else {
+      const d=Math.max(1,Math.floor(a.atk*1.4*sc)-Math.floor(e.def*.4)); e.hp=Math.max(0,e.hp-d); popDmg(d,'#4a8fe8',false); parts.push(`${a.name}(${d})`);
+    }
+  });
+  if(parts.length) setLog('🤝 '+parts.join(' / '));
+}
+
 function enemyTurn(){
+  if(!G.inBattle) return;
+  if(G.party.length){
+    allyTurns(); updateBUI();
+    if(G.enemy.hp<=0){ battleWin(); return; }
+    setTimeout(enemyAct,850);
+  } else { enemyAct(); }
+}
+function enemyAct(){
   if(!G.inBattle) return;
   const p=G.p,e=G.enemy;
   if(e.status?.includes('slow')&&Math.random()<.4){setLog(`🧊 ${e.name}は動きが遅い！`);G.myTurn=true;updateBUI();if(G.buffs.shield)G.buffs.shield--;return;}
@@ -1822,7 +1898,7 @@ function toast(msg){
 }
 
 function saveGame(silent){
-  try{localStorage.setItem('et2sv',JSON.stringify({p:G.p,items:G.items,quests:G.quests,equip:G.equip,skills:G.skills,visited:[...G.visited],story:G.story,ownedWeapons:G.ownedWeapons}));if(!silent)toast('💾 セーブした！');}catch(e){}
+  try{localStorage.setItem('et2sv',JSON.stringify({p:G.p,items:G.items,quests:G.quests,equip:G.equip,skills:G.skills,visited:[...G.visited],story:G.story,ownedWeapons:G.ownedWeapons,party:G.party}));if(!silent)toast('💾 セーブした！');}catch(e){}
 }
 function loadSave(){
   try{const r=localStorage.getItem('et2sv');if(!r) return;const d=JSON.parse(r);
@@ -1834,6 +1910,7 @@ function loadSave(){
     BONUS_SKILLS.forEach(b=>{if(!G.skills.some(s=>s.id===b.id))G.skills.push({...b});});
     if(d.story){Object.assign(G.story,d.story);if(!Array.isArray(G.story.introShown))G.story.introShown=[];}
     if(Array.isArray(d.ownedWeapons))G.ownedWeapons=d.ownedWeapons;
+    if(Array.isArray(d.party))G.party=d.party.filter(id=>ALLIES[id]);
     if(d.visited)G.visited=new Set(d.visited);toast('📂 データを読み込んだ！');}catch(e){}
 }
 
