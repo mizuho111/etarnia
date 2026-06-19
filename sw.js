@@ -1,7 +1,7 @@
 // クロニクル・オブ・エターニア Service Worker
 // 方針：ネットワーク優先（オンライン時は常に最新を取得し、取得できた内容をキャッシュ。
 //       オフライン時のみキャッシュにフォールバック）→ 更新が確実に反映される。
-const VERSION = '2026.06.19-b';
+const VERSION = '2026.06.19-c';
 const CACHE = 'etarnia-' + VERSION;
 
 self.addEventListener('install', () => {

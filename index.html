@@ -121,8 +121,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 #is{background:var(--bg)}
 .ihd{background:linear-gradient(135deg,var(--p1),var(--p2));border-bottom:2px solid var(--b2);
   padding:12px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}
-.iico{font-size:32px}.itit{font-size:17px;font-weight:800;color:var(--gold)}.isub{font-size:10px;color:var(--m2)}
-.bkb{margin-left:auto;background:var(--p3);border:1px solid var(--b2);color:var(--m2);padding:8px 14px;border-radius:10px;font-size:12px;cursor:pointer}
+.iico{font-size:32px;flex-shrink:0}
+.ihdt{flex:1;min-width:0}
+.itit{font-size:17px;font-weight:800;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.isub{font-size:10px;color:var(--m2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bkb{margin-left:auto;flex-shrink:0;white-space:nowrap;background:var(--p3);border:1px solid var(--b2);color:var(--text);padding:10px 16px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation}
+.bkb:active{background:var(--b1)}
 .ib{flex:1;overflow-y:auto;padding:14px}
 .ic-wrap{text-align:center;margin-bottom:12px}
 #ic{border:2px solid var(--b2);border-radius:8px}
@@ -332,7 +336,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="t-div"></div>
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.06.19-b</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.06.19-c</div>
 </div>
 
 <!-- GAME -->
@@ -381,7 +385,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 <div id="is" class="screen">
   <div class="ihd">
     <div class="iico" id="iico">🏠</div>
-    <div><div class="itit" id="itit">場所</div><div class="isub" id="isub">説明</div></div>
+    <div class="ihdt"><div class="itit" id="itit">場所</div><div class="isub" id="isub">説明</div></div>
     <button class="bkb" onclick="exitBuilding()">← 戻る</button>
   </div>
   <div class="ib">
