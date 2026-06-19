@@ -355,7 +355,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="t-div"></div>
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.06.19-k</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.06.19-l</div>
 </div>
 
 <!-- GAME -->
@@ -870,6 +870,7 @@ function renderCutLine(){
   const face=document.getElementById('cutface');
   const im=s.img&&NPC_IMGS[s.img];
   if(im){face.innerHTML=`<img src="${im.src}">`;}
+  else if(s.face==='🧙'){ face.innerHTML=`<img src="${HERO_BATTLE_SRC}" style="object-position:50% 6%" onerror="this.parentNode.textContent='🧙'">`; }
   else{face.textContent=s.face||'⚔️';}
   document.getElementById('cutwho').textContent=s.who||'';
   document.getElementById('cuttx').textContent=s.text;
