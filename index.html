@@ -316,6 +316,20 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   text-shadow:0 0 26px rgba(255,120,20,1),0 0 46px rgba(255,60,0,.85)}
 @keyframes chln{from{opacity:0;transform:translateY(16px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
 
+/* FX: フラッシュ・敵シェイク・セリフ */
+.flash{position:fixed;inset:0;z-index:610;pointer-events:none;opacity:0;animation:flashA .26s ease-out}
+@keyframes flashA{0%{opacity:.5}100%{opacity:0}}
+@keyframes eshake{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px)}40%{transform:translateX(9px)}60%{transform:translateX(-6px)}80%{transform:translateX(5px)}}
+.allybubble{position:absolute;left:8px;top:200px;max-width:74%;z-index:6;pointer-events:none;
+  background:rgba(7,9,15,.92);border:1px solid var(--cyan);color:var(--g3);font-size:11px;font-weight:700;
+  padding:6px 12px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.5);opacity:0;transform:translateY(6px);
+  transition:opacity .2s,transform .2s}
+.allybubble.show{opacity:1;transform:translateY(0)}
+.sndbtn{position:absolute;top:8px;left:8px;z-index:45;background:rgba(7,9,15,.8);border:1px solid var(--b2);
+  border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+  font-size:16px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.5);touch-action:manipulation}
+.sndbtn:active{transform:scale(.9)}
+
 /* BATTLE ALLIES */
 .ballies{position:absolute;left:6px;top:64px;display:flex;flex-direction:column;gap:5px;z-index:3;pointer-events:none}
 .ballyc{display:flex;align-items:center;gap:5px;background:rgba(7,9,15,.72);border:1px solid var(--b2);border-radius:9px;padding:2px 7px 2px 2px;box-shadow:0 2px 6px rgba(0,0,0,.4)}
@@ -341,7 +355,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="t-div"></div>
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.06.19-e</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.06.19-f</div>
 </div>
 
 <!-- GAME -->
@@ -358,6 +372,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   </div>
   <div class="mw" id="mw">
     <canvas id="mc"></canvas>
+    <div class="sndbtn" id="sndbtn" onclick="toggleMute()">🔊</div>
     <div class="minimap"><canvas id="mc2" width="80" height="80"></canvas></div>
     <div class="ll" id="ll">🏰 はじまりの村 エルスタ</div>
     <div class="sban" id="sban" onclick="openM('qum')" style="display:none"></div>
@@ -418,6 +433,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   </div>
   <img id="hero-battle-img" alt="アルシア" style="position:absolute;left:6%;bottom:120px;height:240px;z-index:3;filter:drop-shadow(0 6px 16px rgba(0,0,0,.6));pointer-events:none;transition:transform .12s">
   <div class="ballies" id="ballies"></div>
+  <div class="allybubble" id="allybubble"></div>
   <div class="blw"><div class="blog" id="blog">戦闘開始！</div></div>
   <div class="bact">
     <button class="bb bba" onclick="doAtk()">⚔️ こうげき</button>
@@ -540,15 +556,125 @@ const ALLY_MAGE=new Image();   ALLY_MAGE.src="assets/ally_mage.png";
 const ALLY_PRIEST=new Image(); ALLY_PRIEST.src="assets/ally_priest.png";
 const ALLY_IMGS={archer:ALLY_ARCHER,knight:ALLY_KNIGHT,mage:ALLY_MAGE,priest:ALLY_PRIEST};
 const ALLIES={
-  archer:{id:'archer',name:'リーフ',  role:'弓使い',img:'archer',cost:1200,atk:24,mag:0, def:8, hp:85, kind:'phys',desc:'素早い弓で敵を狙撃する'},
-  knight:{id:'knight',name:'セレナ',  role:'女騎士',img:'knight',cost:1800,atk:32,mag:0, def:22,hp:140,kind:'phys',desc:'重い一撃で敵を打ち砕く盾役'},
-  mage:  {id:'mage',  name:'ヴェル',  role:'魔道士',img:'mage',  cost:2200,atk:0, mag:38,def:5, hp:70, kind:'mag', desc:'闇の魔法で大ダメージを与える'},
-  priest:{id:'priest',name:'フィーナ',role:'僧侶',  img:'priest',cost:1600,atk:0, mag:22,def:7, hp:80, kind:'heal',desc:'HPを回復・蘇生し、時に聖光で攻撃'},
+  archer:{id:'archer',name:'リーフ',  role:'弓使い',img:'archer',cost:1200,atk:24,mag:0, def:8, hp:85, kind:'phys',desc:'素早い弓で敵を狙撃する',
+    lines:{start:'俺の弓、外さないぜ！',quip:['ナイスショット！','次はどいつだ？','よし、命中だ！'],win:'楽勝だったな！'}},
+  knight:{id:'knight',name:'セレナ',  role:'女騎士',img:'knight',cost:1800,atk:32,mag:0, def:22,hp:140,kind:'phys',desc:'重い一撃で敵を打ち砕く盾役',
+    lines:{start:'私が前に出ます！',quip:['させません！','この一撃を受けよ！','下がっていて！'],win:'お見事でした。'}},
+  mage:  {id:'mage',  name:'ヴェル',  role:'魔道士',img:'mage',  cost:2200,atk:0, mag:38,def:5, hp:70, kind:'mag', desc:'闇の魔法で大ダメージを与える',
+    lines:{start:'……闇よ、応えろ。',quip:['塵に還れ。','詠唱、完了だ。','逃がさん。'],win:'当然の結果だ。'}},
+  priest:{id:'priest',name:'フィーナ',role:'僧侶',  img:'priest',cost:1600,atk:0, mag:22,def:7, hp:80, kind:'heal',desc:'HPを回復・蘇生し、時に聖光で攻撃',
+    lines:{start:'みんな、無理しないで！',quip:['癒やしを！','ご無事で！','神のご加護を！'],win:'よかった、みんな無事ね。'}},
 };
 function allyMax(a){ return Math.floor(a.hp*(1+Math.min(G.p.lv,12)*0.18)); }
 function initAllyBattle(){
   G.abt={};
   (G.party||[]).forEach(id=>{ const a=ALLIES[id]; if(!a) return; const m=allyMax(a); G.abt[id]={hp:m,mhp:m,down:false}; });
+}
+
+// ══════════ サウンド（WebAudioで合成・ファイル不要）══════════
+const AUDIO={ctx:null,master:null,muted:false,bgmTimer:null,bgmName:null};
+function audioInit(){
+  try{
+    if(!AUDIO.ctx){
+      const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
+      AUDIO.ctx=new AC();
+      AUDIO.master=AUDIO.ctx.createGain();
+      AUDIO.master.gain.value=AUDIO.muted?0:0.22;
+      AUDIO.master.connect(AUDIO.ctx.destination);
+    }
+    if(AUDIO.ctx.state==='suspended') AUDIO.ctx.resume();
+  }catch(e){}
+}
+function tone(freq,dur,type,vol,when,slideTo){
+  if(!AUDIO.ctx||AUDIO.muted) return;
+  const t=AUDIO.ctx.currentTime+(when||0);
+  const o=AUDIO.ctx.createOscillator(), g=AUDIO.ctx.createGain();
+  o.type=type||'square'; o.frequency.setValueAtTime(freq,t);
+  if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo,t+dur);
+  g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol||0.3,t+0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g); g.connect(AUDIO.master); o.start(t); o.stop(t+dur+0.03);
+}
+function noise(dur,vol,when,lp){
+  if(!AUDIO.ctx||AUDIO.muted) return;
+  const t=AUDIO.ctx.currentTime+(when||0); const n=Math.max(1,Math.floor(AUDIO.ctx.sampleRate*dur));
+  const buf=AUDIO.ctx.createBuffer(1,n,AUDIO.ctx.sampleRate); const d=buf.getChannelData(0);
+  for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*(1-i/n);
+  const src=AUDIO.ctx.createBufferSource(); src.buffer=buf;
+  const f=AUDIO.ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=lp||2000;
+  const g=AUDIO.ctx.createGain(); g.gain.value=vol||0.3;
+  src.connect(f); f.connect(g); g.connect(AUDIO.master); src.start(t);
+}
+function sfx(name){
+  if(!AUDIO.ctx||AUDIO.muted) return;
+  switch(name){
+    case 'attack':   noise(0.16,0.32,0,1800); tone(190,0.12,'square',0.18,0,90); break;
+    case 'enemyhit': noise(0.2,0.28,0,800);  tone(110,0.15,'sawtooth',0.16,0,70); break;
+    case 'magic':    tone(420,0.3,'sine',0.22,0,1000); tone(640,0.28,'triangle',0.12,0.03,1300); break;
+    case 'heal':     [523,659,784].forEach((f,i)=>tone(f,0.22,'sine',0.2,i*0.07)); break;
+    case 'levelup':  [523,659,784,1047].forEach((f,i)=>tone(f,0.26,'square',0.22,i*0.1)); break;
+    case 'explosion':noise(0.7,0.5,0,650); tone(80,0.6,'sawtooth',0.28,0,40); break;
+    case 'victory':  [659,784,988,1319].forEach((f,i)=>tone(f,0.3,'square',0.24,i*0.13)); break;
+    case 'defeat':   [392,330,262].forEach((f,i)=>tone(f,0.45,'triangle',0.2,i*0.2)); break;
+    case 'item':     tone(880,0.1,'square',0.18,0); tone(1320,0.12,'square',0.18,0.08); break;
+    case 'coin':     tone(988,0.07,'square',0.18); tone(1319,0.12,'square',0.18,0.06); break;
+    case 'rare':     [784,988,1319,1568,2093].forEach((f,i)=>tone(f,0.3,'square',0.22,i*0.1)); break;
+    case 'select':   tone(660,0.05,'square',0.13); break;
+    case 'run':      tone(440,0.22,'sine',0.18,0,180); break;
+  }
+}
+const NF={E2:82.41,F2:87.31,G2:98,A2:110,B2:123.47,C3:130.81,D3:146.83,E3:164.81,G3:196,A3:220,
+  C4:261.63,D4:293.66,E4:329.63,F4:349.23,G4:392,A4:440,B4:493.88,C5:523.25,D5:587.33,E5:659.25,G5:783.99,A5:880};
+const BGMS={
+  field:{tempo:104,leadType:'triangle',
+    lead:[[NF.A4,1],[NF.C5,1],[NF.E5,2],[NF.D5,1],[NF.C5,1],[NF.A4,2],[NF.G4,1],[NF.A4,1],[NF.C5,2],[NF.E5,1],[NF.D5,1],[NF.C5,2]],
+    bass:[[NF.A2,2],[NF.A2,2],[NF.F2,2],[NF.F2,2],[NF.C3,2],[NF.C3,2],[NF.G2,2],[NF.E2,2]]},
+  battle:{tempo:152,leadType:'square',
+    lead:[[NF.E5,0.5],[NF.E5,0.5],[NF.G5,1],[NF.E5,0.5],[NF.D5,0.5],[NF.C5,1],[NF.A4,1],[NF.B4,1],[NF.C5,0.5],[NF.D5,0.5],[NF.E5,1],[NF.A4,1]],
+    bass:[[NF.A2,1],[NF.A2,1],[NF.F2,1],[NF.G2,1],[NF.A2,1],[NF.A2,1],[NF.E2,1],[NF.E2,1]]},
+};
+function playBGM(name){
+  stopBGM(); AUDIO.bgmName=name;
+  if(!AUDIO.ctx||AUDIO.muted) return;
+  const def=BGMS[name]; if(!def) return; const beat=60/def.tempo;
+  const loop=()=>{
+    if(AUDIO.bgmName!==name||AUDIO.muted||!AUDIO.ctx) return;
+    let t=0; def.lead.forEach(([f,d])=>{ if(f) tone(f,beat*d*0.9,def.leadType,0.14,t); t+=beat*d; });
+    let tb=0; def.bass.forEach(([f,d])=>{ if(f) tone(f,beat*d*0.95,'sine',0.16,tb); tb+=beat*d; });
+    AUDIO.bgmTimer=setTimeout(loop, Math.max(t,tb)*1000);
+  };
+  loop();
+}
+function stopBGM(){ if(AUDIO.bgmTimer){ clearTimeout(AUDIO.bgmTimer); AUDIO.bgmTimer=null; } }
+function toggleMute(){
+  AUDIO.muted=!AUDIO.muted;
+  try{ localStorage.setItem('et2mute', AUDIO.muted?'1':'0'); }catch(e){}
+  if(AUDIO.master) AUDIO.master.gain.value=AUDIO.muted?0:0.22;
+  const b=document.getElementById('sndbtn'); if(b) b.textContent=AUDIO.muted?'🔇':'🔊';
+  if(AUDIO.muted) stopBGM(); else { audioInit(); playBGM(AUDIO.bgmName||'field'); }
+}
+
+// ── 画面演出 ──
+function flash(color){
+  const f=document.createElement('div'); f.className='flash'; f.style.background=color;
+  document.body.appendChild(f); setTimeout(()=>f.remove(),260);
+}
+function shakeEnemy(){
+  const e=document.getElementById('esp'); if(!e) return;
+  e.style.animation='none'; void e.offsetWidth; e.style.animation='eshake .3s';
+}
+function allySpeak(id,text){
+  const a=ALLIES[id]; if(!a||!text) return;
+  const el=document.getElementById('allybubble'); if(!el) return;
+  el.textContent=`${a.name}「${text}」`; el.classList.add('show');
+  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2200);
+}
+function partyBanter(kind){
+  const alive=(G.party||[]).filter(id=>!(G.abt&&G.abt[id]&&G.abt[id].down));
+  if(!alive.length) return;
+  const id=alive[Math.floor(Math.random()*alive.length)];
+  const L=ALLIES[id].lines; if(!L) return;
+  allySpeak(id, kind==='quip'?L.quip[Math.floor(Math.random()*L.quip.length)]:L[kind]);
 }
 
 // 最初から全員が持っている特別呪文（既存セーブにも自動付与）
@@ -1360,7 +1486,7 @@ function renderContent(b){
 
 function restInn(){
   if(G.p.gold<50){toast('ゴールドが足りない！');return;}
-  G.p.gold-=50;G.p.hp=G.p.mhp;G.p.mp=G.p.mmp;
+  G.p.gold-=50;G.p.hp=G.p.mhp;G.p.mp=G.p.mmp;sfx('heal');
   toast('💤 ぐっすり眠れた！HP・MP全回復！');updateUI();renderContent(G.curB);
 }
 // ── 武器の装備（付け替えでステータスを正しく入れ替え）──
@@ -1410,7 +1536,7 @@ function rollGacha(n){
   if(G.p.gold<cost){ toast('ゴールドが足りない！'); return; }
   G.p.gold-=cost;
   const results=[]; for(let i=0;i<n;i++) results.push(applyGachaResult(gachaPick()));
-  if(results.some(x=>x.r==='UR'||x.r==='SSR')) explosionFx();
+  if(results.some(x=>x.r==='UR'||x.r==='SSR')){ explosionFx(); sfx('rare'); } else { sfx('coin'); }
   const html=results.map(x=>{const c=RARITY[x.r].c;return `<div class="si" style="border-color:${c}"><div class="siico">${x.icon}</div><div class="sii"><div class="sin" style="color:${c}">[${x.r}] ${x.name}</div><div class="sid">${x.note||''}</div></div></div>`;}).join('');
   document.getElementById('gresult').innerHTML=`<div class="estt" style="margin:8px 0 8px">🎉 結果</div><div class="slist">${html}</div>`;
   toast(n===10?'🎰 10連を引いた！':'🎰 ガチャを引いた！');
@@ -1431,7 +1557,7 @@ function recruitAlly(id){
   const a=ALLIES[id]; if(!a) return;
   if(G.party.includes(id)){ toast('もう仲間だ！'); return; }
   if(G.p.gold<a.cost){ toast('ゴールドが足りない！'); return; }
-  G.p.gold-=a.cost; G.party.push(id);
+  G.p.gold-=a.cost; G.party.push(id); sfx('coin');
   toast(`🤝 ${a.name}が仲間になった！`); updateUI(); renderContent(G.curB); saveGame(true);
 }
 function dismissAlly(id){
@@ -1468,7 +1594,7 @@ function buyConsume(id,pr){
   G.p.gold-=pr;let it=G.items.find(i=>i.id===id);
   if(!it&&ITEM_DEFS[id]){it={...ITEM_DEFS[id],qty:0};G.items.push(it);}
   if(it)it.qty++;
-  toast('🛒 購入した！');updateUI();renderContent(G.curB);
+  sfx('coin');toast('🛒 購入した！');updateUI();renderContent(G.curB);
 }
 const LEARN_SKILLS=[
   {id:'holy',name:'ホーリー',icon:'🌟',desc:'聖なる光・炎上付与',mp:24,pow:90,t:'atk',eff:'burn',cost:1200},
@@ -1518,6 +1644,7 @@ function triggerBattle(boss=false){
     xp:Math.floor(base.xp*rwSc),gold:Math.floor(base.gold*rwSc),status:[]};
   G.inBattle=true;G.myTurn=true;G.buffs={};initAllyBattle();
   updateBUI();setLog(`${G.enemy.name}があらわれた！`);showScreen('bs');
+  playBGM('battle'); if(G.party.length) setTimeout(()=>partyBanter('start'),500);
   // Battle bg particles
   const bg=document.getElementById('bbg');bg.innerHTML='';
   for(let i=0;i<10;i++){
@@ -1547,6 +1674,7 @@ function triggerFinalBoss(){
   G.enemy={...base,hp:base.mhp,status:[],final:true};
   G.inBattle=true;G.myTurn=true;G.buffs={};initAllyBattle();
   updateBUI();setLog(n?`甦りし滅びの竜ヴァルガ＋${n}が立ちはだかる！`:'滅びの竜ヴァルガが立ちはだかる！世界の命運は、お前に懸かっている！');showScreen('bs');
+  playBGM('battle'); if(G.party.length) setTimeout(()=>partyBanter('start'),500);
   const bg=document.getElementById('bbg');bg.innerHTML='';
   for(let i=0;i<12;i++){const d=document.createElement('div');d.className='bp';const sz=Math.random()*70+20;
     d.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;background:radial-gradient(circle,rgba(232,74,74,.22),transparent);--d:${3+Math.random()*4}s;--dl:${Math.random()*3}s`;bg.appendChild(d);}
@@ -1592,6 +1720,7 @@ function doAtk(){
   let dmg=Math.max(1,p.atk-Math.floor(e.def*.45)+Math.floor(Math.random()*8));
   if(crit) dmg=Math.floor(dmg*1.6);
   e.hp=Math.max(0,e.hp-dmg);
+  sfx('attack'); shakeEnemy();
   popDmg(dmg,crit?'#f5c842':'#e84a4a',false);
   setLog(`アルシアのこうげき！${crit?'<span class="hl">クリティカル！</span>':''} <span class="hl">${e.name}</span>に${dmg}ダメージ！`);
   tickStatus();updateBUI();
@@ -1617,6 +1746,10 @@ function useBSk(id){
   if(!sk||G.p.mp<sk.mp){toast('MPが足りない！');return;}
   G.myTurn=false;G.p.mp-=sk.mp;
   const p=G.p,e=G.enemy;
+  if(sk.t==='self'||sk.t==='buff') sfx('heal');
+  else if(sk.t==='sacrifice'){ sfx('explosion'); shakeEnemy(); }
+  else if(sk.t==='explosion'){ /* 詠唱完了後に鳴らす */ }
+  else { sfx('magic'); shakeEnemy(); }
   if(sk.t==='self'){
     p.hp=Math.min(p.mhp,p.hp+sk.pow);popDmg('+'+sk.pow,'#27c96a',true);
     setLog(`✨ <span class="hl">${sk.name}</span>！HPが${sk.pow}回復！`);
@@ -1649,7 +1782,7 @@ function useBSk(id){
       if(!G.inBattle) return;
       const dmg=350+p.mag*3-Math.floor(e.def*.2);
       e.hp=Math.max(0,e.hp-dmg); popDmg(dmg,'#ff5500',false);
-      p.mp=0; G.buffs.collapse=1; explosionFx();
+      p.mp=0; G.buffs.collapse=1; explosionFx(); sfx('explosion'); shakeEnemy();
       setLog(`🌋 <span class="hl">エクスプロージョン！！</span> 全魔力を解き放つ大爆発が${e.name}を飲み込んだ！<span class="hl">${dmg}</span>の超ダメージ！`);
       tickStatus(); updateBUI();
       if(e.hp<=0){ battleWin(); return; }
@@ -1691,11 +1824,12 @@ function useBItem(id){
   G.myTurn=false; it.qty--;
   if(it.t==='dmg'){
     G.enemy.hp=Math.max(0,G.enemy.hp-it.v);popDmg(it.v,'#ff8c42',false);
+    sfx('explosion'); shakeEnemy();
     setLog(`💣 ${it.name}！${G.enemy.name}に${it.v}ダメージ！`);
     tickStatus();updateBUI();if(G.enemy.hp<=0){battleWin();return;}
     setTimeout(enemyTurn,950);return;
   }
-  applyItem(it);tickStatus();updateBUI();setTimeout(enemyTurn,950);
+  sfx('item');applyItem(it);tickStatus();updateBUI();setTimeout(enemyTurn,950);
 }
 
 function applyItem(it){
@@ -1714,7 +1848,7 @@ function tickStatus(){
 function tryRun(){
   if(!G.myTurn||!G.inBattle) return;
   G.myTurn=false;
-  if(Math.random()<.55){G.inBattle=false;setLog('うまく逃げ切った！');setTimeout(()=>{showScreen('gs');updateUI();renderMap();},900);}
+  if(Math.random()<.55){G.inBattle=false;sfx('run');setLog('うまく逃げ切った！');setTimeout(()=>{showScreen('gs');updateUI();renderMap();playBGM('field');},900);}
   else{setLog('逃げられなかった！');setTimeout(enemyTurn,800);}
 }
 
@@ -1746,7 +1880,7 @@ function allyTurns(){
       const d=Math.max(1,Math.floor(a.atk*1.4*sc)-Math.floor(e.def*.4)); e.hp=Math.max(0,e.hp-d); popDmg(d,'#4a8fe8',false); parts.push(`${a.name}(${d})`);
     }
   });
-  if(parts.length) setLog('🤝 '+parts.join(' / '));
+  if(parts.length){ setLog('🤝 '+parts.join(' / ')); sfx('magic'); if(Math.random()<0.3) partyBanter('quip'); }
 }
 
 function enemyTurn(){
@@ -1771,12 +1905,13 @@ function enemyAct(){
     const dmg=Math.max(1,e.atk-Math.floor(def*.45)+Math.floor(Math.random()*6));
     p.hp=Math.max(0,p.hp-dmg);
     setLog(`${e.name}のこうげき！アルシアに<span class="hl">${dmg}</span>ダメージ！`);
+    sfx('enemyhit'); flash('rgba(232,74,74,.45)');
     popDmg(dmg,'#e84a4a',true);updateBUI();
     if(p.hp<=0){battleLose();return;}
   } else {
     const a=ALLIES[tgt.id], st=G.abt[tgt.id];
     const dmg=Math.max(1,Math.floor(e.atk*0.8)-a.def+Math.floor(Math.random()*6));
-    st.hp=Math.max(0,st.hp-dmg); popDmg(dmg,'#e84a4a',true);
+    st.hp=Math.max(0,st.hp-dmg); popDmg(dmg,'#e84a4a',true); sfx('enemyhit');
     if(st.hp<=0){ st.down=true; setLog(`${e.name}の攻撃！<span class="hl">${a.name}</span>は倒れてしまった…！`); }
     else setLog(`${e.name}のこうげき！${a.name}に<span class="hl">${dmg}</span>ダメージ！`);
     updateBUI();
@@ -1857,6 +1992,7 @@ function battleWin(){
     G.myTurn=false;
     setLog(`${e.name}を倒した！ <span class="hl">XP+${e.xp}</span> <span class="hl">Gold+${e.gold}💰</span>`);
     updateBUI();saveGame(true);
+    sfx('victory');
     if(firstKill){
       // 物語の決着 → エンディング → 閉じたら無限モードへ
       G.inBattle=false;
@@ -1868,11 +2004,12 @@ function battleWin(){
   }
   // ── 通常の勝利 ──
   G.inBattle=false;
+  sfx('victory'); partyBanter('win');
   if(SLIME_NAMES.includes(e.name)) bumpQuest('q1');
   const qm={'ゴブリン':'q2','洞窟の主':'q3','スケルトン':'q5','オーク':'q6','暗黒騎士':'q7','ドラゴン':'q8'};
   if(qm[e.name]) bumpQuest(qm[e.name]);
   setLog(`${e.name}を倒した！ <span class="hl">XP+${e.xp}</span> <span class="hl">Gold+${e.gold}💰</span>`);
-  setTimeout(()=>{showScreen('gs');updateUI();renderMap();saveGame();
+  setTimeout(()=>{showScreen('gs');updateUI();renderMap();saveGame();playBGM('field');
     storyOnKill(e.name); pumpStory();
   },1300);
 }
@@ -1883,7 +2020,7 @@ function reviveAndResume(){
   e.mhp=s.mhp; e.hp=s.mhp; e.atk=s.atk; e.def=s.def; e.xp=s.xp; e.gold=s.gold;
   e.status=[]; e.final=true; e.boss=true;
   G.inBattle=true; G.myTurn=true; G.buffs={};
-  explosionFx();
+  explosionFx(); sfx('explosion'); playBGM('battle');
   setLog(`💀 だが魔王は滅びない――！ ヴァルガは更なる力を得て<span class="hl">復活</span>した！（${n+1}体目・強化＋${n}）`);
   updateBUI(); showScreen('bs');
 }
@@ -1894,9 +2031,9 @@ function endsContinue(){
 }
 
 function battleLose(){
-  G.inBattle=false;G.p.hp=Math.floor(G.p.mhp*.25);G.p.x=10;G.p.y=10;G.p.px=10;G.p.py=10;G.p.tx=10;G.p.ty=10;lastArriveKey='10,10';
+  G.inBattle=false;sfx('defeat');G.p.hp=Math.floor(G.p.mhp*.25);G.p.x=10;G.p.y=10;G.p.px=10;G.p.py=10;G.p.tx=10;G.p.ty=10;lastArriveKey='10,10';
   setLog('やられてしまった…はじまりの村に戻った。');
-  setTimeout(()=>{showScreen('gs');updateUI();renderMap();},1300);
+  setTimeout(()=>{showScreen('gs');updateUI();renderMap();playBGM('field');},1300);
 }
 
 function gainXP(amt){
@@ -1909,6 +2046,7 @@ function gainXP(amt){
 }
 
 function showLU(){
+  sfx('levelup');
   const el=document.createElement('div');el.className='lvup';
   el.innerHTML=`<div class="lut">LEVEL UP!</div><div class="lulv">${G.p.lv}</div><div class="lun">アルシア</div>`;
   document.body.appendChild(el);setTimeout(()=>el.remove(),2200);
@@ -2025,6 +2163,10 @@ function startGame(){
   showScreen('gs');initCanvas();bindDpad();bindSwipe();updateUI();renderMap();
   document.getElementById('hero-battle-img').src=HERO_BATTLE_SRC;
   requestAnimationFrame(gameLoop);
+  try{ AUDIO.muted=localStorage.getItem('et2mute')==='1'; }catch(e){}
+  const _sb=document.getElementById('sndbtn'); if(_sb) _sb.textContent=AUDIO.muted?'🔇':'🔊';
+  audioInit(); playBGM('field');
+  document.addEventListener('pointerdown',audioInit);
   updateStoryUI();
   if(G.story.idx===0 && !G.story.introShown[0]){
     G.story.introShown[0]=true;
