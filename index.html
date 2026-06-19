@@ -127,6 +127,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 .isub{font-size:10px;color:var(--m2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bkb{margin-left:auto;flex-shrink:0;white-space:nowrap;background:var(--p3);border:1px solid var(--b2);color:var(--text);padding:10px 16px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation}
 .bkb:active{background:var(--b1)}
+.backfab{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:130;
+  background:linear-gradient(135deg,var(--p2),var(--p3));border:2px solid var(--gold);color:var(--gold);
+  padding:13px 22px;border-radius:26px;font-size:14px;font-weight:800;cursor:pointer;
+  box-shadow:0 4px 18px rgba(0,0,0,.65);touch-action:manipulation;white-space:nowrap}
+.backfab:active{transform:scale(.93);background:var(--b1)}
 .ib{flex:1;overflow-y:auto;padding:14px}
 .ic-wrap{text-align:center;margin-bottom:12px}
 #ic{border:2px solid var(--b2);border-radius:8px}
@@ -336,7 +341,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="t-div"></div>
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.06.19-c</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.06.19-d</div>
 </div>
 
 <!-- GAME -->
@@ -386,8 +391,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="ihd">
     <div class="iico" id="iico">🏠</div>
     <div class="ihdt"><div class="itit" id="itit">場所</div><div class="isub" id="isub">説明</div></div>
-    <button class="bkb" onclick="exitBuilding()">← 戻る</button>
   </div>
+  <button class="backfab" onclick="exitBuilding()">← 戻る</button>
   <div class="ib">
     <div class="ic-wrap"><canvas id="ic" width="300" height="150"></canvas></div>
     <div id="icont"></div>
