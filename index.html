@@ -341,7 +341,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="t-div"></div>
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.06.19-d</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.06.19-e</div>
 </div>
 
 <!-- GAME -->
@@ -422,7 +422,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="bact">
     <button class="bb bba" onclick="doAtk()">⚔️ こうげき</button>
     <button class="bb bbs" onclick="openSkillSelect()">✨ スキル</button>
-    <button class="bb bbi" onclick="doBattleItem()">🧪 アイテム</button>
+    <button class="bb bbi" onclick="openItemSelect()">🧪 アイテム</button>
     <button class="bb bbr" onclick="tryRun()">💨 にげる</button>
   </div>
 </div>
@@ -459,6 +459,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 <div class="ov" id="bskm" onclick="closeM('bskm')"><div class="modal" onclick="event.stopPropagation()">
   <div class="mhd"><span class="mtt">✨ スキル選択</span><button class="mx" onclick="closeM('bskm')">✕</button></div>
   <div class="mbd" id="bskbd"></div>
+</div></div>
+
+<div class="ov" id="bitm" onclick="closeM('bitm')"><div class="modal" onclick="event.stopPropagation()">
+  <div class="mhd"><span class="mtt">🧪 アイテム選択</span><button class="mx" onclick="closeM('bitm')">✕</button></div>
+  <div class="mbd" id="bitbd"></div>
 </div></div>
 
 <div class="toast" id="toast"></div>
@@ -1666,11 +1671,24 @@ function useBSk(id){
   setTimeout(enemyTurn,950);
 }
 
-function doBattleItem(){
+function openItemSelect(){
   if(!G.myTurn||!G.inBattle) return;
   const us=G.items.filter(i=>i.qty>0&&(i.t==='heal'||i.t==='fullhp'||i.t==='mp'||i.t==='dmg'));
-  if(!us.length){setLog('使えるアイテムがない！');return;}
-  G.myTurn=false;const it=us[0];it.qty--;
+  if(!us.length){ setLog('使えるアイテムが無い！'); return; }
+  document.getElementById('bitbd').innerHTML=us.map(it=>`
+    <div class="bskc" onclick="useBItem('${it.id}')">
+      <div class="skico">${it.icon}</div>
+      <div class="ski"><div class="skn" style="color:var(--green)">${it.name}</div><div class="skd">${it.desc}</div></div>
+      <div class="itq">×${it.qty}</div>
+    </div>`).join('');
+  openM('bitm');
+}
+function useBItem(id){
+  closeM('bitm');
+  if(!G.myTurn||!G.inBattle) return;
+  const it=G.items.find(i=>i.id===id);
+  if(!it||it.qty<=0){ toast('アイテムが無い！'); return; }
+  G.myTurn=false; it.qty--;
   if(it.t==='dmg'){
     G.enemy.hp=Math.max(0,G.enemy.hp-it.v);popDmg(it.v,'#ff8c42',false);
     setLog(`💣 ${it.name}！${G.enemy.name}に${it.v}ダメージ！`);
