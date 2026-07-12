@@ -346,6 +346,18 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   color:var(--cyan);font-size:10px;font-weight:700;padding:5px 10px;border-radius:12px;cursor:pointer;
   box-shadow:0 2px 8px rgba(0,0,0,.5);touch-action:manipulation}
 .tacchip:active{transform:scale(.94)}
+
+/* 詠唱演出（短い） */
+.castfx{display:none;position:absolute;inset:0;z-index:605;pointer-events:none;
+  flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.castfx.show{display:flex}
+.castcircle{width:150px;height:150px;border-radius:50%;
+  background:radial-gradient(circle,transparent 52%,var(--cc,#a855f7) 54%,transparent 60%);
+  box-shadow:0 0 40px var(--cc,#a855f7);opacity:.9;position:absolute;
+  border:2px solid var(--cc,#a855f7)}
+@keyframes castspin{0%{transform:rotate(0) scale(.4);opacity:0}30%{opacity:1}100%{transform:rotate(200deg) scale(1.15);opacity:0}}
+.casttx{position:relative;z-index:2;font-size:15px;font-weight:800;text-align:center;max-width:86%;
+  text-shadow:0 0 12px currentColor,0 2px 5px #000;animation:chln .4s ease}
 .chant-skip{position:absolute;bottom:22px;right:16px;z-index:3;background:rgba(0,0,0,.5);
   border:1px solid var(--muted);color:var(--m2);padding:7px 14px;border-radius:14px;font-size:11px;cursor:pointer}
 .chant-hint{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:3;
@@ -362,7 +374,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="t-div"></div>
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.12-b</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.12-c</div>
 </div>
 
 <!-- GAME -->
@@ -444,6 +456,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="ballies" id="ballies"></div>
   <div class="allybubble" id="allybubble"></div>
   <div class="tacchip" id="tacchip" onclick="cycleTactics()">作戦:おまかせ</div>
+  <div class="castfx" id="castfx"><div class="castcircle" id="castcircle"></div><div class="casttx" id="casttx"></div></div>
   <div class="blw"><div class="blog" id="blog">戦闘開始！</div></div>
   <div class="bact">
     <button class="bb bba" onclick="doAtk()">⚔️ こうげき</button>
@@ -2094,12 +2107,50 @@ function openSkillSelect(){
   openM('bskm');
 }
 
+// 各魔法の短い詠唱ボイス
+const CAST_LINES={
+  slash:'魔力を刃に纏わせ――斬る！',
+  fire:'燃え上がれ、紅蓮の球――ファイアボール！',
+  thun:'天雷よ、貫け――サンダーボルト！',
+  bliz:'凍てつく吹雪よ――ブリザード！',
+  heal:'癒やしの光を、いま――ヒール！',
+  shld:'守りの盾よ、我を包め――マジックシールド！',
+  drain:'生命を吸い上げよ――ドレイン！',
+  holy:'聖なる裁きの光――ホーリー！',
+  regen:'癒やしの流れを絶やすな――リジェネ！',
+  meteo:'天蓋より墜ちよ、星の火――メテオ！',
+  buffatk:'闘志よ、燃え上がれ！',
+  healall:'恵みの雨よ、皆を包め！',
+  reraise:'不屈の加護を、我らに！',
+  counter:'来い、その一撃……倍にして返す！',
+  puruputen:'何が起きても知らないぞ――パルプンテ！',
+  megante:'我が命を礎に――メガンテ！',
+};
+// 詠唱演出（属性色の魔法陣＋短い詠唱）→ done()で効果発動
+function castFlourish(sk, done){
+  const el=sk.el||((sk.t==='self'||sk.t==='healall'||sk.t==='buff'||sk.t==='reraise'||sk.t==='buffatk')?'holy':'none');
+  const col=(ELEMENTS[el]&&ELEMENTS[el].c)||'#a855f7';
+  const ov=document.getElementById('castfx');
+  if(!ov){ done(); return; }
+  const cc=document.getElementById('castcircle'), tx=document.getElementById('casttx');
+  cc.style.setProperty('--cc',col); tx.style.color=col;
+  tx.textContent=CAST_LINES[sk.id]||`『${sk.name}』！`;
+  ov.classList.add('show');
+  cc.style.animation='none'; void cc.offsetWidth; cc.style.animation='castspin .72s ease-out';
+  sfx('magic');
+  setTimeout(()=>{ ov.classList.remove('show'); done(); }, 700);
+}
 function useBSk(id){
   closeM('bskm');
   if(!G.myTurn||!G.inBattle) return;
   const sk=G.skills.find(s=>s.id===id);
   if(!sk||G.p.mp<sk.mp){toast('MPが足りない！');return;}
   G.myTurn=false;G.p.mp-=sk.mp;
+  if(sk.t==='explosion'){ resolveBSk(sk); return; } // 専用の長い詠唱
+  castFlourish(sk, ()=>resolveBSk(sk));
+}
+function resolveBSk(sk){
+  if(!G.inBattle) return;
   const p=G.p,e=G.enemy;
   if(sk.t==='self'||sk.t==='buff') sfx('heal');
   else if(sk.t==='sacrifice'){ sfx('explosion'); shakeEnemy(); }
