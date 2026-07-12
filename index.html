@@ -339,6 +339,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 .ballyc .bnm{font-size:9px;font-weight:700;color:var(--text);white-space:nowrap}
 .ballyc .bhpb{width:54px;height:4px;background:#0a1020;border-radius:3px;overflow:hidden;border:1px solid var(--b1)}
 .ballyc .bhpf{height:100%;background:linear-gradient(90deg,#2a7a3a,#27c96a);border-radius:3px;transition:width .4s}
+.ballyc .bspb{width:54px;height:3px;background:#0a1020;border-radius:2px;overflow:hidden;border:1px solid var(--b1);margin-top:1px}
+.ballyc .bspf{height:100%;background:linear-gradient(90deg,#806000,#f5c842);border-radius:2px;transition:width .3s}
+.ballyc.ready{border-color:var(--gold);box-shadow:0 0 8px rgba(245,200,66,.5)}
+.tacchip{position:absolute;top:8px;right:8px;z-index:45;background:rgba(7,9,15,.82);border:1px solid var(--b2);
+  color:var(--cyan);font-size:10px;font-weight:700;padding:5px 10px;border-radius:12px;cursor:pointer;
+  box-shadow:0 2px 8px rgba(0,0,0,.5);touch-action:manipulation}
+.tacchip:active{transform:scale(.94)}
 .chant-skip{position:absolute;bottom:22px;right:16px;z-index:3;background:rgba(0,0,0,.5);
   border:1px solid var(--muted);color:var(--m2);padding:7px 14px;border-radius:14px;font-size:11px;cursor:pointer}
 .chant-hint{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:3;
@@ -355,7 +362,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="t-div"></div>
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.12-a</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.12-b</div>
 </div>
 
 <!-- GAME -->
@@ -436,6 +443,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div id="hero-battle-fallback" style="display:none;position:absolute;left:6%;bottom:120px;height:240px;z-index:3;font-size:140px;line-height:240px;pointer-events:none;filter:drop-shadow(0 6px 16px rgba(0,0,0,.6))">🧙</div>
   <div class="ballies" id="ballies"></div>
   <div class="allybubble" id="allybubble"></div>
+  <div class="tacchip" id="tacchip" onclick="cycleTactics()">作戦:おまかせ</div>
   <div class="blw"><div class="blog" id="blog">戦闘開始！</div></div>
   <div class="bact">
     <button class="bb bba" onclick="doAtk()">⚔️ こうげき</button>
@@ -569,13 +577,17 @@ const ALLY_MAGE=new Image();   ALLY_MAGE.src="assets/ally_mage.png";
 const ALLY_PRIEST=new Image(); ALLY_PRIEST.src="assets/ally_priest.png";
 const ALLY_IMGS={archer:ALLY_ARCHER,knight:ALLY_KNIGHT,mage:ALLY_MAGE,priest:ALLY_PRIEST,drake:NPC_DRAKE,elmia:NPC_ELMIA};
 const ALLIES={
-  archer:{id:'archer',name:'リーフ',  role:'弓使い',img:'archer',cost:1200,atk:24,mag:0, def:8, hp:85, kind:'phys',desc:'素早い弓で敵を狙撃する',
+  archer:{id:'archer',name:'リーフ',  role:'弓使い',img:'archer',cost:1200,atk:24,mag:0, def:8, hp:85, kind:'phys',el:'thunder',desc:'雷を帯びた矢で敵を狙撃する',
+    sp:{name:'雷光の五月雨',kind:'atk',el:'thunder',mult:3.4},
     lines:{start:'俺の弓、外さないぜ！',quip:['ナイスショット！','次はどいつだ？','よし、命中だ！'],win:'楽勝だったな！'}},
-  knight:{id:'knight',name:'セレナ',  role:'女騎士',img:'knight',cost:1800,atk:32,mag:0, def:22,hp:140,kind:'phys',desc:'重い一撃で敵を打ち砕く盾役',
+  knight:{id:'knight',name:'セレナ',  role:'女騎士',img:'knight',cost:1800,atk:32,mag:0, def:22,hp:140,kind:'phys',el:'none',desc:'重い一撃で敵を打ち砕く盾役',
+    sp:{name:'聖盾の守り',kind:'guard'},
     lines:{start:'私が前に出ます！',quip:['させません！','この一撃を受けよ！','下がっていて！'],win:'お見事でした。'}},
-  mage:  {id:'mage',  name:'ヴェル',  role:'魔道士',img:'mage',  cost:2200,atk:0, mag:38,def:5, hp:70, kind:'mag', desc:'闇の魔法で大ダメージを与える',
+  mage:  {id:'mage',  name:'ヴェル',  role:'魔道士',img:'mage',  cost:2200,atk:0, mag:38,def:5, hp:70, kind:'mag',el:'dark', desc:'闇の魔法で大ダメージを与える',
+    sp:{name:'アビススフィア',kind:'atk',el:'dark',mult:3.0},
     lines:{start:'……闇よ、応えろ。',quip:['塵に還れ。','詠唱、完了だ。','逃がさん。'],win:'当然の結果だ。'}},
-  priest:{id:'priest',name:'フィーナ',role:'僧侶',  img:'priest',cost:1600,atk:0, mag:22,def:7, hp:80, kind:'heal',desc:'HPを回復・蘇生し、時に聖光で攻撃',
+  priest:{id:'priest',name:'フィーナ',role:'僧侶',  img:'priest',cost:1600,atk:0, mag:22,def:7, hp:80, kind:'heal',el:'holy',desc:'HPを回復・蘇生し、時に聖光で攻撃',
+    sp:{name:'星光の癒し',kind:'healall'},
     lines:{start:'みんな、無理しないで！',quip:['癒やしを！','ご無事で！','神のご加護を！'],win:'よかった、みんな無事ね。'}},
   drake: {id:'drake', name:'ドレイク',role:'重戦士',img:'drake', cost:3000,atk:40,mag:0, def:28,hp:180,kind:'phys',desc:'海を渡る豪傑。圧倒的な膂力で前線を支える',
     lines:{start:'よっしゃ、暴れさせてもらうぜ！',quip:['でかい一撃いくぞ！','まだまだァ！','どっせい！'],win:'ハッハ、いい運動だった！'}},
@@ -585,8 +597,9 @@ const ALLIES={
 function allyMax(a){ return Math.floor(a.hp*(1+Math.min(G.p.lv,12)*0.18)); }
 function initAllyBattle(){
   G.abt={};
-  (G.party||[]).forEach(id=>{ const a=ALLIES[id]; if(!a) return; const m=allyMax(a); G.abt[id]={hp:m,mhp:m,down:false}; });
+  (G.party||[]).forEach(id=>{ const a=ALLIES[id]; if(!a) return; const m=allyMax(a); G.abt[id]={hp:m,mhp:m,down:false,sp:0}; });
   G.pstatus={}; // プレイヤーの状態異常（毒・麻痺）をリセット
+  G.taunt=null;  // かばう対象
 }
 
 // ══════════ サウンド（WebAudioで合成・ファイル不要）══════════
@@ -762,6 +775,7 @@ const G={
   equip:{weapon:{id:'iron',name:'鉄の剣',icon:'🗡️',stat:'標準装備',atk:0,mag:0},armor:{name:'革の鎧',icon:'🛡️',stat:'DEF+5'},acc:{name:'魔力の指輪',icon:'💍',stat:'MAG+6'}},
   ownedWeapons:[],
   party:[],
+  tactics:'auto',
   skills:[
     {id:'slash',name:'魔法斬り',icon:'🗡️',desc:'魔力乗せ斬撃',mp:8,pow:40,t:'atk',el:'none'},
     {id:'fire',name:'ファイアボール',icon:'🔥',desc:'炎の球',mp:12,pow:55,t:'atk',el:'fire'},
@@ -2043,9 +2057,10 @@ function updateBUI(){
     const a=ALLIES[id]; if(!a) return '';
     const im=ALLY_IMGS[a.img]; const st=G.abt&&G.abt[id];
     const pct=st?Math.max(0,st.hp/st.mhp*100):100;
-    const down=st&&st.down;
-    return `<div class="ballyc${down?' down':''}"><img src="${im?im.src:''}"><div class="binfo"><span class="bnm">${a.name}${down?' (戦闘不能)':''}</span><div class="bhpb"><div class="bhpf" style="width:${pct}%"></div></div></div></div>`;
+    const down=st&&st.down; const sp=st?Math.min(100,st.sp||0):0; const ready=sp>=100;
+    return `<div class="ballyc${down?' down':''}${ready?' ready':''}"><img src="${im?im.src:''}"><div class="binfo"><span class="bnm">${a.name}${down?' (戦闘不能)':ready?' <span style="color:var(--gold)">必殺OK!</span>':''}</span><div class="bhpb"><div class="bhpf" style="width:${pct}%"></div></div><div class="bspb"><div class="bspf" style="width:${sp}%"></div></div></div></div>`;
   }).join(''); }
+  const tc=document.getElementById('tacchip'); if(tc){ tc.textContent='作戦:'+({auto:'おまかせ',attack:'集中攻撃',defend:'守り重視',save:'温存'}[G.tactics||'auto']); }
 }
 
 function setLog(msg){document.getElementById('blog').innerHTML=msg;}
@@ -2260,35 +2275,79 @@ function tryRun(){
   else{setLog('逃げられなかった！');setTimeout(enemyTurn,800);}
 }
 
+function cycleTactics(){
+  const order=['auto','attack','defend','save'];
+  const cur=order.indexOf(G.tactics||'auto');
+  G.tactics=order[(cur+1)%order.length];
+  const nm={auto:'おまかせ',attack:'集中攻撃',defend:'守り重視',save:'温存'}[G.tactics];
+  sfx('select'); toast('作戦：'+nm);
+  const tc=document.getElementById('tacchip'); if(tc) tc.textContent='作戦:'+nm;
+  saveGame(true);
+}
 function allyTurns(){
-  const e=G.enemy, eff=Math.min(G.p.lv,12), sc=1+eff*0.12; let parts=[];
+  const e=G.enemy, eff=Math.min(G.p.lv,12), sc=1+eff*0.12; let parts=[]; const specials=[];
   if(!G.abt) initAllyBattle();
+  const tac=G.tactics||'auto';
+  const gaugeRate = tac==='attack'?36 : tac==='defend'?20 : 28;
+  const healThresh = tac==='defend'?0.8 : tac==='attack'?0.45 : 0.6;
+  const elC=el=>(ELEMENTS[el]&&ELEMENTS[el].c)||'#a855f7';
   G.party.forEach(id=>{
     if(!G.inBattle||e.hp<=0) return;
     const a=ALLIES[id]; if(!a) return;
     const st=G.abt[id]; if(!st||st.down) return; // 戦闘不能はスキップ
+    if(st.sp==null) st.sp=0;
+    st.sp=Math.min(100, st.sp+gaugeRate);
+    const canSp = st.sp>=100 && tac!=='save' && a.sp;
     if(a.kind==='heal'){
-      // 1) 戦闘不能の仲間がいれば蘇生
       const downId=G.party.find(x=>G.abt[x]&&G.abt[x].down);
-      if(downId){ const dm=G.abt[downId]; dm.down=false; dm.hp=Math.floor(dm.mhp*0.4); popDmg('蘇生','#ffd24a',true); parts.push(`${a.name}が${ALLIES[downId].name}を蘇生！`); return; }
-      // 2) 最も傷ついた味方（主人公含む）を回復
-      const ratios=[{who:'hero',r:G.p.hp/G.p.mhp}].concat(G.party.filter(x=>G.abt[x]&&!G.abt[x].down).map(x=>({who:x,r:G.abt[x].hp/G.abt[x].mhp})));
-      ratios.sort((p,q)=>p.r-q.r);
-      const low=ratios[0];
-      if(low.r<0.6){ const h=Math.floor((40+a.mag*2)*sc);
-        if(low.who==='hero'){ G.p.hp=Math.min(G.p.mhp,G.p.hp+h); popDmg('+'+h,'#27c96a',true); }
-        else { const dm=G.abt[low.who]; dm.hp=Math.min(dm.mhp,dm.hp+h); popDmg('+'+h,'#27c96a',true); }
-        parts.push(`${a.name}の回復(HP+${h})`); return;
+      // 必殺（星光の癒し）：戦闘不能や瀕死があれば発動
+      if(canSp && a.sp.kind==='healall' && (downId || G.p.hp<G.p.mhp*0.55)){
+        st.sp=0; specials.push(id);
+        if(G.p.hp<G.p.mhp) G.p.hp=G.p.mhp;
+        G.party.forEach(x=>{const dm=G.abt[x];if(!dm)return; if(dm.down){dm.down=false;dm.hp=dm.mhp;} else if(dm.hp<dm.mhp){dm.hp=dm.mhp;}});
+        popDmg('★全回復','#ffd24a',true); sfx('heal');
+        parts.push(`★${a.name}『${a.sp.name}』！仲間全員が全回復＆蘇生！`); return;
       }
-      // 3) 余裕があれば聖光で攻撃
-      const d=Math.max(1,Math.floor(a.mag*sc)-Math.floor(e.def*.2)); e.hp=Math.max(0,e.hp-d); popDmg(d,'#ffd24a',false); parts.push(`${a.name}の聖光(${d})`);
-    } else if(a.kind==='mag'){
-      const d=Math.max(1,Math.floor(a.mag*1.7*sc)-Math.floor(e.def*.2)); e.hp=Math.max(0,e.hp-d); popDmg(d,'#a855f7',false); parts.push(`${a.name}の魔法(${d})`);
+      if(downId){ const dm=G.abt[downId]; dm.down=false; dm.hp=Math.floor(dm.mhp*0.4); popDmg('蘇生','#ffd24a',true); parts.push(`${a.name}が${ALLIES[downId].name}を蘇生！`); return; }
+      const ratios=[{who:'hero',r:G.p.hp/G.p.mhp}].concat(G.party.filter(x=>G.abt[x]&&!G.abt[x].down).map(x=>({who:x,r:G.abt[x].hp/G.abt[x].mhp})));
+      ratios.sort((p,q)=>p.r-q.r); const low=ratios[0];
+      if(low.r<healThresh){ const h=Math.floor((40+a.mag*2)*sc);
+        if(low.who==='hero'){ G.p.hp=Math.min(G.p.mhp,G.p.hp+h); } else { const dm=G.abt[low.who]; dm.hp=Math.min(dm.mhp,dm.hp+h); }
+        popDmg('+'+h,'#27c96a',true); parts.push(`${a.name}の回復(HP+${h})`); return;
+      }
+      const el=a.el||'holy'; let d=Math.max(1,Math.floor(a.mag*sc)-Math.floor(e.def*.2)); d=Math.floor(d*elemMult(el,e));
+      e.hp=Math.max(0,e.hp-d); popDmg(d,elC(el),false); parts.push(`${a.name}の聖光(${d})${elemTag(el,e)}`); return;
+    }
+    // 攻撃役の必殺
+    if(canSp && a.sp.kind==='atk'){
+      st.sp=0; specials.push(id);
+      const el=a.sp.el||a.el||'none';
+      let d=Math.max(1,Math.floor((a.atk||a.mag)*a.sp.mult*sc)-Math.floor(e.def*.25)); d=Math.floor(d*elemMult(el,e));
+      e.hp=Math.max(0,e.hp-d); popDmg(d,elC(el),false); shakeEnemy(); sfx('explosion');
+      parts.push(`★${a.name}『${a.sp.name}』！<span class="hl">${d}</span>ダメージ${elemTag(el,e)}`); return;
+    }
+    // 騎士の必殺：かばう＆守り
+    if(canSp && a.sp.kind==='guard'){
+      st.sp=0; specials.push(id);
+      G.buffs.guard=2; G.taunt={id:id,t:2}; sfx('heal');
+      parts.push(`★${a.name}『${a.sp.name}』！仲間をかばい、2ターン被害を軽減！`); return;
+    }
+    // 通常攻撃（属性付き）
+    if(a.kind==='mag'){
+      const el=a.el||'dark'; let d=Math.max(1,Math.floor(a.mag*1.7*sc)-Math.floor(e.def*.2)); d=Math.floor(d*elemMult(el,e));
+      e.hp=Math.max(0,e.hp-d); popDmg(d,elC(el),false); parts.push(`${a.name}の魔法(${d})${elemTag(el,e)}`);
     } else {
-      const d=Math.max(1,Math.floor(a.atk*1.4*sc)-Math.floor(e.def*.4)); e.hp=Math.max(0,e.hp-d); popDmg(d,'#4a8fe8',false); parts.push(`${a.name}(${d})`);
+      const el=a.el||'none'; let d=Math.max(1,Math.floor(a.atk*1.4*sc)-Math.floor(e.def*.4)); d=Math.floor(d*elemMult(el,e));
+      e.hp=Math.max(0,e.hp-d); popDmg(d,el==='none'?'#4a8fe8':elC(el),false); parts.push(`${a.name}(${d})${elemTag(el,e)}`);
     }
   });
-  if(parts.length){ setLog('🤝 '+parts.join(' / ')); sfx('magic'); if(Math.random()<0.3) partyBanter('quip'); }
+  // 連携技：同ターンに2人以上が必殺 → 追撃ボーナス
+  if(specials.length>=2 && e.hp>0){
+    const bonus=Math.floor((50+G.p.lv*9)*specials.length);
+    e.hp=Math.max(0,e.hp-bonus); popDmg(bonus,'#00d4ff',false); explosionFx(); sfx('rare');
+    parts.push(`💥 連携技！ 追加<span class="hl">${bonus}</span>ダメージ！`);
+  }
+  if(parts.length){ setLog('🤝 '+parts.join('<br>')); sfx('magic'); if(Math.random()<0.3) partyBanter('quip'); }
 }
 
 function enemyTurn(){
@@ -2308,9 +2367,14 @@ function enemyAct(){
   (G.party||[]).forEach(id=>{ if(G.abt&&G.abt[id]&&!G.abt[id].down) targets.push({type:'ally',id,w:1}); });
   let tw=targets.reduce((s,t)=>s+t.w,0), rr=Math.random()*tw, tgt=targets[0];
   for(const t of targets){ if((rr-=t.w)<0){ tgt=t; break; } }
+  // かばう（挑発）：騎士が生存していれば身代わりに
+  if(G.taunt && G.taunt.t>0 && G.abt[G.taunt.id] && !G.abt[G.taunt.id].down){ tgt={type:'ally',id:G.taunt.id}; }
+  const gm = G.buffs.guard>0 ? 0.6 : 1; // 「聖盾の守り」で被害軽減
+  if(G.buffs.guard>0) G.buffs.guard--;
+  if(G.taunt){ G.taunt.t--; if(G.taunt.t<=0) G.taunt=null; }
   if(tgt.type==='hero'){
     const def=p.def+(G.buffs.shield>0?25:0);if(G.buffs.shield>0)G.buffs.shield--;
-    const dmg=Math.max(1,e.atk-Math.floor(def*.45)+Math.floor(Math.random()*6));
+    const dmg=Math.max(1,Math.floor((e.atk-Math.floor(def*.45)+Math.floor(Math.random()*6))*gm));
     p.hp=Math.max(0,p.hp-dmg);
     setLog(`${e.name}のこうげき！アルシアに<span class="hl">${dmg}</span>ダメージ！`);
     sfx('enemyhit'); flash('rgba(232,74,74,.45)');
@@ -2327,7 +2391,7 @@ function enemyAct(){
     }
   } else {
     const a=ALLIES[tgt.id], st=G.abt[tgt.id];
-    const dmg=Math.max(1,Math.floor(e.atk*0.8)-a.def+Math.floor(Math.random()*6));
+    const dmg=Math.max(1,Math.floor((Math.floor(e.atk*0.8)-a.def+Math.floor(Math.random()*6))*gm));
     st.hp=Math.max(0,st.hp-dmg); popDmg(dmg,'#e84a4a',true); sfx('enemyhit');
     if(st.hp<=0){ st.down=true; setLog(`${e.name}の攻撃！<span class="hl">${a.name}</span>は倒れてしまった…！`); }
     else setLog(`${e.name}のこうげき！${a.name}に<span class="hl">${dmg}</span>ダメージ！`);
@@ -2782,7 +2846,7 @@ function toast(msg){
 }
 
 function saveGame(silent){
-  try{localStorage.setItem('et2sv',JSON.stringify({p:G.p,items:G.items,quests:G.quests,equip:G.equip,skills:G.skills,visited:[...G.visited],story:G.story,ownedWeapons:G.ownedWeapons,party:G.party,bounty:G.bounty,ach:G.ach,dex:G.dex,arena:{best:G.arena.best},dungeon:{best:G.dungeon.best},sp:G.sp,tree:G.tree}));if(!silent)toast('💾 セーブした！');}catch(e){}
+  try{localStorage.setItem('et2sv',JSON.stringify({p:G.p,items:G.items,quests:G.quests,equip:G.equip,skills:G.skills,visited:[...G.visited],story:G.story,ownedWeapons:G.ownedWeapons,party:G.party,bounty:G.bounty,ach:G.ach,dex:G.dex,arena:{best:G.arena.best},dungeon:{best:G.dungeon.best},sp:G.sp,tree:G.tree,tactics:G.tactics}));if(!silent)toast('💾 セーブした！');}catch(e){}
 }
 function loadSave(){
   try{const r=localStorage.getItem('et2sv');if(!r) return;const d=JSON.parse(r);
@@ -2795,6 +2859,7 @@ function loadSave(){
     if(d.story){Object.assign(G.story,d.story);if(!Array.isArray(G.story.introShown))G.story.introShown=[];}
     if(Array.isArray(d.ownedWeapons))G.ownedWeapons=d.ownedWeapons;
     if(Array.isArray(d.party))G.party=d.party.filter(id=>ALLIES[id]);
+    if(d.tactics)G.tactics=d.tactics;
     if(d.bounty)G.bounty=d.bounty;
     if(d.ach)Object.assign(G.ach,d.ach);
     if(Array.isArray(d.dex))G.dex=d.dex;
