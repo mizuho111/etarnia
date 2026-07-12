@@ -355,7 +355,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="t-div"></div>
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.06.19-n</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.12-a</div>
 </div>
 
 <!-- GAME -->
@@ -737,15 +737,20 @@ function partyBanter(kind){
   allySpeak(id, kind==='quip'?L.quip[Math.floor(Math.random()*L.quip.length)]:L[kind]);
 }
 
+// ══════════ 属性システム ══════════
+const ELEMENTS={fire:{n:'炎',c:'#ff8c42'},ice:{n:'氷',c:'#00d4ff'},thunder:{n:'雷',c:'#f5c842'},dark:{n:'闇',c:'#a855f7'},holy:{n:'聖',c:'#ffd24a'},none:{n:'',c:'#a855f7'}};
+function elemMult(el,e){ if(!el||el==='none'||!e)return 1; if(e.weak===el)return 1.6; if(e.resist===el)return 0.5; return 1; }
+function elemTag(el,e){ if(!el||el==='none'||!e)return ''; if(e.weak===el)return ' <span class="hl">⚡弱点！</span>'; if(e.resist===el)return ' <span style="color:var(--muted)">…耐性</span>'; return ''; }
+
 // 最初から全員が持っている特別呪文（既存セーブにも自動付与）
 const BONUS_SKILLS=[
   {id:'puruputen',name:'パルプンテ',icon:'🌀',desc:'何が起こるか分からない…',mp:15,pow:0,t:'random'},
   {id:'megante',name:'メガンテ',icon:'💥',desc:'自爆して敵に致命の一撃(HP1になる)',mp:5,pow:0,t:'sacrifice'},
-  {id:'explosion',name:'エクスプロージョン',icon:'🌋',desc:'全魔力の大爆発！撃つと魔力切れで動けなくなる',mp:40,pow:0,t:'explosion'},
+  {id:'explosion',name:'エクスプロージョン',icon:'🌋',desc:'全魔力の大爆発！撃つと魔力切れで動けなくなる',mp:40,pow:0,t:'explosion',el:'fire'},
 ];
 
 const G={
-  p:{name:'アルシア',lv:1,job:'魔法剣士',hp:100,mhp:100,mp:50,mmp:50,xp:0,xpn:100,gold:500,atk:18,def:12,mag:22,spd:15,x:10,y:10,px:10,py:10,tx:10,ty:10,face:'right'},
+  p:{name:'アルシア',lv:1,job:'魔法剣士',hp:100,mhp:100,mp:50,mmp:50,xp:0,xpn:100,gold:500,atk:18,def:12,mag:22,spd:15,x:10,y:10,px:10,py:10,tx:10,ty:10,face:'right',status:[]},
   enemy:null,inBattle:false,myTurn:true,inIndoor:false,curB:null,buffs:{},time:0,
   items:[
     {id:'pot',name:'ポーション',icon:'🧪',desc:'HPを50回復',qty:3,t:'heal',v:50},
@@ -758,13 +763,13 @@ const G={
   ownedWeapons:[],
   party:[],
   skills:[
-    {id:'slash',name:'魔法斬り',icon:'🗡️',desc:'魔力乗せ斬撃',mp:8,pow:40,t:'atk'},
-    {id:'fire',name:'ファイアボール',icon:'🔥',desc:'炎の球',mp:12,pow:55,t:'atk'},
-    {id:'thun',name:'サンダーボルト',icon:'⚡',desc:'雷の貫通',mp:16,pow:70,t:'atk'},
-    {id:'bliz',name:'ブリザード',icon:'❄️',desc:'氷の嵐・遅延効果',mp:18,pow:60,t:'atk',eff:'slow'},
+    {id:'slash',name:'魔法斬り',icon:'🗡️',desc:'魔力乗せ斬撃',mp:8,pow:40,t:'atk',el:'none'},
+    {id:'fire',name:'ファイアボール',icon:'🔥',desc:'炎の球',mp:12,pow:55,t:'atk',el:'fire'},
+    {id:'thun',name:'サンダーボルト',icon:'⚡',desc:'雷の貫通',mp:16,pow:70,t:'atk',el:'thunder'},
+    {id:'bliz',name:'ブリザード',icon:'❄️',desc:'氷の嵐・遅延効果',mp:18,pow:60,t:'atk',eff:'slow',el:'ice'},
     {id:'heal',name:'ヒール',icon:'💚',desc:'HPを50回復',mp:10,pow:50,t:'self'},
     {id:'shld',name:'マジックシールド',icon:'🛡️',desc:'防御1ターン強化',mp:14,pow:0,t:'buff'},
-    {id:'drain',name:'ドレイン',icon:'🌑',desc:'敵HPを吸収',mp:20,pow:45,t:'drain'},
+    {id:'drain',name:'ドレイン',icon:'🌑',desc:'敵HPを吸収',mp:20,pow:45,t:'drain',el:'dark'},
     ...BONUS_SKILLS.map(s=>({...s})),
   ],
   quests:[
@@ -992,20 +997,20 @@ const NPCS=[
 ];
 
 const ENEMIES=[
-  // index 0-7（既存。imgを追加）
-  {name:'スライム',img:'s_blue',icon:'🟢',lv:1,mhp:45,atk:8,def:4,xp:35,gold:20},
-  {name:'コウモリ',img:'e_bat',icon:'🦇',lv:2,mhp:60,atk:13,def:5,xp:50,gold:30},
-  {name:'ゴブリン',img:'e_goblin',icon:'👺',lv:3,mhp:90,atk:20,def:8,xp:80,gold:60},
-  {name:'スケルトン',img:'e_skeleton',icon:'💀',lv:5,mhp:120,atk:26,def:12,xp:110,gold:90},
-  {name:'オーク',img:'e_orc',icon:'👹',lv:7,mhp:160,atk:35,def:16,xp:160,gold:130},
-  {name:'ドラゴン',img:'e_dragon',icon:'🐉',lv:10,mhp:250,atk:50,def:22,xp:280,gold:250},
-  {name:'暗黒騎士',img:'e_knight',icon:'⚫',lv:8,mhp:200,atk:44,def:20,xp:220,gold:200},
-  {name:'洞窟の主',img:'e_lord',icon:'👑',lv:12,mhp:400,atk:60,def:28,xp:600,gold:600,boss:true},
+  // index 0-7（既存。img/属性を追加）
+  {name:'スライム',img:'s_blue',icon:'🟢',lv:1,mhp:45,atk:8,def:4,xp:35,gold:20,weak:'fire'},
+  {name:'コウモリ',img:'e_bat',icon:'🦇',lv:2,mhp:60,atk:13,def:5,xp:50,gold:30,weak:'thunder'},
+  {name:'ゴブリン',img:'e_goblin',icon:'👺',lv:3,mhp:90,atk:20,def:8,xp:80,gold:60,weak:'fire'},
+  {name:'スケルトン',img:'e_skeleton',icon:'💀',lv:5,mhp:120,atk:26,def:12,xp:110,gold:90,weak:'holy',resist:'dark'},
+  {name:'オーク',img:'e_orc',icon:'👹',lv:7,mhp:160,atk:35,def:16,xp:160,gold:130,weak:'ice',inflict:{s:'paralyze',c:0.25}},
+  {name:'ドラゴン',img:'e_dragon',icon:'🐉',lv:10,mhp:250,atk:50,def:22,xp:280,gold:250,weak:'ice',resist:'fire'},
+  {name:'暗黒騎士',img:'e_knight',icon:'⚫',lv:8,mhp:200,atk:44,def:20,xp:220,gold:200,weak:'holy',resist:'dark',inflict:{s:'paralyze',c:0.3}},
+  {name:'洞窟の主',img:'e_lord',icon:'👑',lv:12,mhp:400,atk:60,def:28,xp:600,gold:600,boss:true,weak:'holy',resist:'dark'},
   // index 8-11（スライム色違い・新規）
-  {name:'みどりスライム',img:'s_green',icon:'🟢',lv:2,mhp:55,atk:10,def:5,xp:45,gold:28},
-  {name:'きいろスライム',img:'s_yellow',icon:'🟡',lv:3,mhp:65,atk:14,def:6,xp:60,gold:40},
-  {name:'どくスライム',img:'s_purple',icon:'🟣',lv:4,mhp:80,atk:18,def:8,xp:80,gold:55},
-  {name:'ピンクスライム',img:'s_pink',icon:'🩷',lv:3,mhp:70,atk:12,def:7,xp:65,gold:50},
+  {name:'みどりスライム',img:'s_green',icon:'🟢',lv:2,mhp:55,atk:10,def:5,xp:45,gold:28,weak:'fire'},
+  {name:'きいろスライム',img:'s_yellow',icon:'🟡',lv:3,mhp:65,atk:14,def:6,xp:60,gold:40,weak:'thunder'},
+  {name:'どくスライム',img:'s_purple',icon:'🟣',lv:4,mhp:80,atk:18,def:8,xp:80,gold:55,weak:'fire',resist:'dark',inflict:{s:'poison',c:0.4}},
+  {name:'ピンクスライム',img:'s_pink',icon:'🩷',lv:3,mhp:70,atk:12,def:7,xp:65,gold:50,weak:'fire'},
 ];
 
 // ── 未知の大陸（真エンディング後に解放）の強敵プール ──
@@ -1832,9 +1837,9 @@ function buyConsume(id,pr){
   sfx('coin');toast('🛒 購入した！');updateUI();renderContent(G.curB);
 }
 const LEARN_SKILLS=[
-  {id:'holy',name:'ホーリー',icon:'🌟',desc:'聖なる光・炎上付与',mp:24,pow:90,t:'atk',eff:'burn',cost:1200},
+  {id:'holy',name:'ホーリー',icon:'🌟',desc:'聖なる光・炎上付与',mp:24,pow:90,t:'atk',eff:'burn',cost:1200,el:'holy'},
   {id:'regen',name:'リジェネ',icon:'💟',desc:'HPを80回復',mp:18,pow:80,t:'self',cost:900},
-  {id:'meteo',name:'メテオ',icon:'☄️',desc:'隕石で特大ダメージ',mp:32,pow:120,t:'atk',cost:2000},
+  {id:'meteo',name:'メテオ',icon:'☄️',desc:'隕石で特大ダメージ',mp:32,pow:120,t:'atk',cost:2000,el:'fire'},
   {id:'brave',name:'ブレイブ',icon:'🔥',desc:'3ターン攻撃力1.5倍',mp:16,pow:0,t:'buffatk',cost:1000},
   {id:'poisn',name:'ポイズンダート',icon:'☠️',desc:'毒を与える毒針',mp:14,pow:40,t:'atk',eff:'poison',cost:800},
   {id:'healall',name:'リバイブヒール',icon:'💖',desc:'味方全員のHPを大回復',mp:28,pow:120,t:'healall',cost:1800},
@@ -2004,7 +2009,7 @@ function bossStats(n){
 function triggerFinalBoss(){
   if(G.inIndoor) exitBuilding();
   const n=G.story.bossKills||0, s=bossStats(n);
-  const base={name:'滅びの竜 ヴァルガ'+(n?` ＋${n}`:''),img:'e_dragon',icon:'🐉',lv:15+n*3,boss:true,...s};
+  const base={name:'滅びの竜 ヴァルガ'+(n?` ＋${n}`:''),img:'e_dragon',icon:'🐉',lv:15+n*3,boss:true,weak:'holy',resist:'fire',...s};
   G.enemy={...base,hp:base.mhp,status:[],final:true};
   G.inBattle=true;G.myTurn=true;G.buffs={};initAllyBattle();
   updateBUI();setLog(n?`甦りし滅びの竜ヴァルガ＋${n}が立ちはだかる！`:'滅びの竜ヴァルガが立ちはだかる！世界の命運は、お前に懸かっている！');showScreen('bs');
@@ -2102,10 +2107,11 @@ function useBSk(id){
   } else if(sk.t==='counter'){
     G.buffs.counter=1; setLog(`🥋 <span class="hl">${sk.name}</span>！反撃の構え。次に受けた攻撃を倍にして返す！`);
   } else if(sk.t==='drain'){
-    const dmg=Math.max(1,sk.pow+Math.floor(p.mag*.5)-Math.floor(e.def*.3));
+    let dmg=Math.max(1,sk.pow+Math.floor(p.mag*.5)-Math.floor(e.def*.3));
+    dmg=Math.floor(dmg*elemMult('dark',e));
     e.hp=Math.max(0,e.hp-dmg);p.hp=Math.min(p.mhp,p.hp+Math.floor(dmg*.5));
     popDmg(dmg,'#9b59b6',false);
-    setLog(`🌑 <span class="hl">${sk.name}</span>！${dmg}吸収！`);
+    setLog(`🌑 <span class="hl">${sk.name}</span>！${dmg}吸収！${elemTag('dark',e)}`);
   } else if(sk.t==='random'){
     // パルプンテ：7通りのランダム効果
     const roll=Math.floor(Math.random()*7);
@@ -2138,11 +2144,12 @@ function useBSk(id){
     return; // 共通末尾(即enemyTurn)をスキップ。詠唱完了後に処理する
   } else {
     const magB=G.buffs.atkup>0?1.5:1;
-    const dmg=Math.max(1,Math.floor((sk.pow+Math.floor(p.mag*.6))*magB)-Math.floor(e.def*.3)+Math.floor(Math.random()*12));
+    const el=sk.el||'none';
+    let dmg=Math.max(1,Math.floor((sk.pow+Math.floor(p.mag*.6))*magB)-Math.floor(e.def*.3)+Math.floor(Math.random()*12));
+    dmg=Math.floor(dmg*elemMult(el,e));
     e.hp=Math.max(0,e.hp-dmg);
-    const cols={fire:'#ff8c42',thun:'#f5c842',bliz:'#00d4ff',slash:'#a855f7'};
-    popDmg(dmg,cols[sk.id]||'#a855f7',false);
-    setLog(`✨ <span class="hl">${sk.name}</span>！${e.name}に<span class="hl">${dmg}</span>の魔法ダメージ！`);
+    popDmg(dmg,(ELEMENTS[el]&&ELEMENTS[el].c)||'#a855f7',false);
+    setLog(`✨ <span class="hl">${sk.name}</span>！${e.name}に<span class="hl">${dmg}</span>の魔法ダメージ！${elemTag(el,e)}`);
     if(sk.eff&&!e.status.includes(sk.eff)) e.status.push(sk.eff);
   }
   tickStatus();updateBUI();
@@ -2196,6 +2203,12 @@ function tickStatus(){
 // 敵がプレイヤーに状態異常を付与（毒系→毒、ボス→麻痺）
 function maybeInflictPlayer(e){
   if(!G.pstatus) G.pstatus={};
+  // 敵データの inflict 指定を優先
+  if(e.inflict && !(G.pstatus[e.inflict.s]>0) && Math.random()<e.inflict.c){
+    const s=e.inflict.s; G.pstatus[s]= s==='poison'?3:2;
+    setLog(s==='poison'?`☠️ ${e.name}の攻撃！アルシアは毒に侵された！`:`⚡ ${e.name}の攻撃！アルシアは麻痺した！`);
+    return;
+  }
   const nm=e.name||'';
   if((nm.includes('どく')||nm.includes('呪い'))&&!(G.pstatus.poison>0)&&Math.random()<0.35){
     G.pstatus.poison=3; setLog(`☠️ ${e.name}の毒攻撃！アルシアは毒に侵された！`);
