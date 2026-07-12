@@ -374,7 +374,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="t-div"></div>
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.13-a</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.13-b</div>
 </div>
 
 <!-- GAME -->
@@ -765,7 +765,13 @@ function partyBanter(kind){
 
 // ══════════ 属性システム ══════════
 const ELEMENTS={fire:{n:'炎',c:'#ff8c42'},ice:{n:'氷',c:'#00d4ff'},thunder:{n:'雷',c:'#f5c842'},dark:{n:'闇',c:'#a855f7'},holy:{n:'聖',c:'#ffd24a'},none:{n:'',c:'#a855f7'}};
-function elemMult(el,e){ if(!el||el==='none'||!e)return 1; if(e.weak===el)return 1.6; if(e.resist===el)return 0.5; return 1; }
+function weatherFactor(el){
+  const w=G.battleCtx; if(!w||!el||el==='none') return 1;
+  if(w.rain){ if(el==='thunder')return 1.25; if(el==='fire')return 0.75; }
+  if(w.night){ if(el==='dark')return 1.15; if(el==='holy')return 0.9; }
+  return 1;
+}
+function elemMult(el,e){ let m=1; if(el&&el!=='none'&&e){ if(e.weak===el)m=1.6; else if(e.resist===el)m=0.5; } return m*weatherFactor(el); }
 function elemTag(el,e){ if(!el||el==='none'||!e)return ''; if(e.weak===el)return ' <span class="hl">⚡弱点！</span>'; if(e.resist===el)return ' <span style="color:var(--muted)">…耐性</span>'; return ''; }
 
 // 最初から全員が持っている特別呪文（既存セーブにも自動付与）
@@ -789,6 +795,7 @@ const G={
   ownedWeapons:[],
   party:[],
   tactics:'auto',
+  weather:'clear',
   skills:[
     {id:'slash',name:'魔法斬り',icon:'🗡️',desc:'魔力乗せ斬撃',mp:8,pow:40,t:'atk',el:'none'},
     {id:'fire',name:'ファイアボール',icon:'🔥',desc:'炎の球',mp:12,pow:55,t:'atk',el:'fire'},
@@ -1038,6 +1045,8 @@ const ENEMIES=[
   {name:'きいろスライム',img:'s_yellow',icon:'🟡',lv:3,mhp:65,atk:14,def:6,xp:60,gold:40,weak:'thunder'},
   {name:'どくスライム',img:'s_purple',icon:'🟣',lv:4,mhp:80,atk:18,def:8,xp:80,gold:55,weak:'fire',resist:'dark',inflict:{s:'poison',c:0.4}},
   {name:'ピンクスライム',img:'s_pink',icon:'🩷',lv:3,mhp:70,atk:12,def:7,xp:65,gold:50,weak:'fire'},
+  // レアモンスター（はぐれメタル系）：守備が高くすぐ逃げるが、倒せば超経験値
+  {name:'ミスリルメタル',img:'s_blue',icon:'⚙️',lv:8,mhp:38,atk:12,def:34,xp:2000,gold:1500,weak:'thunder',rare:true,flee:0.45},
 ];
 
 // ── 未知の大陸（真エンディング後に解放）の強敵プール ──
@@ -1456,10 +1465,13 @@ function getZone(){
   return 'field';
 }
 
+const WEATHERS=[{k:'clear',t:'☀️ 晴れ'},{k:'cloud',t:'🌤 曇り'},{k:'rain',t:'🌧 雨'},{k:'thunder',t:'⛈ 雷雨'}];
 function updateTimeDisplay(){
   const da=getDayAlpha();
   document.getElementById('wt').textContent=da<.3?'☀️ 昼':da<.6?'🌅 夕方':da<.9?'🌙 夜':'🌄 明け方';
-  if(Math.random()<.02){const ws=['☀️ 晴れ','🌤 曇り','🌧 雨','⛅ 薄曇'];document.getElementById('ww').textContent=ws[Math.floor(Math.random()*ws.length)];}
+  if(Math.random()<.02){ G.weather=WEATHERS[Math.floor(Math.random()*WEATHERS.length)].k; }
+  const wo=WEATHERS.find(w=>w.k===(G.weather||'clear'))||WEATHERS[0];
+  document.getElementById('ww').textContent=wo.t;
 }
 
 // ── INDOOR ──
@@ -1982,17 +1994,28 @@ function triggerBattle(boss=false){
                :                  [ENEMIES[0],ENEMIES[1],ENEMIES[2],ENEMIES[3],ENEMIES[8]];
     base={...pool[Math.floor(Math.random()*pool.length)]};
   }
-  // 敵スケールはLv8相当で頭打ち（高レベルでの数値インフレを防ぎ、雑魚を“追い越す”感を出す）
+  // 天候・昼夜の文脈
+  const night=getDayAlpha()>0.55;
+  const rain=(G.weather==='rain'||G.weather==='thunder');
+  G.battleCtx={night,rain,weather:G.weather||'clear'};
+  // レアモンスター（はぐれメタル系）：夜は出やすい。逃げ足が速いが超経験値
+  const rareEnemy=ENEMIES.find(x=>x.rare);
+  if(!boss && rareEnemy && Math.random()<(night?0.08:0.04)){ base={...rareEnemy}; }
+  // 敵スケールはLv8相当で頭打ち
   const lv=G.p.lv, eff=Math.min(lv,8);
-  const hpSc =1+(eff-1)*0.16;
-  const atkSc=1+(eff-1)*0.08;  // 攻撃の伸びは特に緩やか（一撃死を防ぐ）
+  const nightB=night?1.1:1; // 夜は敵が少し強い
+  const hpSc =(1+(eff-1)*0.16)*nightB;
+  const atkSc=(1+(eff-1)*0.08)*nightB;
   const defSc=1+(eff-1)*0.06;
-  const rwSc =1+(eff-1)*0.12;  // 経験値・ゴールドの伸びも頭打ち
+  const rwSc =1+(eff-1)*0.12;
   G.enemy={...base,hp:Math.floor(base.mhp*hpSc),mhp:Math.floor(base.mhp*hpSc),
     atk:Math.floor(base.atk*atkSc),def:Math.floor(base.def*defSc),
     xp:Math.floor(base.xp*rwSc),gold:Math.floor(base.gold*rwSc),status:[]};
   G.inBattle=true;G.myTurn=true;G.buffs={};initAllyBattle();
-  updateBUI();setLog(`${G.enemy.name}があらわれた！`);showScreen('bs');
+  let intro=`${G.enemy.name}があらわれた！`;
+  if(G.enemy.rare) intro=`✨ ${G.enemy.name}があらわれた！ 逃げられる前に倒せ！`;
+  else { const wnote=rain?' 🌧雨：雷が強く炎が弱い':(night?' 🌙夜：敵が手強い':''); if(wnote) intro+=wnote; }
+  updateBUI();setLog(intro);showScreen('bs');
   playBGM(G.enemy.boss?'boss':'battle'); if(G.party.length) setTimeout(()=>partyBanter('start'),500);
   // Battle bg particles
   const bg=document.getElementById('bbg');bg.innerHTML='';
@@ -2036,6 +2059,7 @@ function bossStats(n){
 function triggerFinalBoss(){
   if(G.inIndoor) exitBuilding();
   const n=G.story.bossKills||0, s=bossStats(n);
+  G.battleCtx={night:getDayAlpha()>0.55,rain:(G.weather==='rain'||G.weather==='thunder'),weather:G.weather||'clear'};
   const base={name:'滅びの竜 ヴァルガ'+(n?` ＋${n}`:''),img:'e_dragon',icon:'🐉',lv:15+n*3,boss:true,weak:'holy',resist:'fire',...s};
   G.enemy={...base,hp:base.mhp,status:[],final:true};
   G.inBattle=true;G.myTurn=true;G.buffs={};initAllyBattle();
@@ -2444,6 +2468,11 @@ function bossGimmick(e){
 function enemyAct(){
   if(!G.inBattle) return;
   const p=G.p,e=G.enemy;
+  // レアモンスターは高確率で逃走（報酬なし）
+  if(e.rare && Math.random()<(e.flee||0.45)){
+    G.inBattle=false; sfx('run'); setLog(`💨 ${e.name}はすばやく逃げ出した…！（取り逃がした）`);
+    setTimeout(()=>{showScreen('gs');updateUI();renderMap();playBGM('field');},1100); return;
+  }
   if(e.status?.includes('slow')&&Math.random()<.4){setLog(`🧊 ${e.name}は動きが遅い！`);if(G.buffs.shield)G.buffs.shield--;beginPlayerTurn();return;}
   if(e.boss && bossGimmick(e)) return;
   // ターゲット選択（主人公を狙いやすいが、生存中の仲間も狙う）
