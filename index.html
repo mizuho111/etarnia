@@ -374,7 +374,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="t-div"></div>
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.12-c</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.13-a</div>
 </div>
 
 <!-- GAME -->
@@ -2064,7 +2064,7 @@ function updateBUI(){
   document.getElementById('elv').textContent='Lv.'+e.lv;
   document.getElementById('ehf').style.width=(e.hp/e.mhp*100)+'%';
   document.getElementById('ehtx').textContent=`HP: ${e.hp}/${e.mhp}`;
-  document.getElementById('sbdg').innerHTML=(e.status||[]).map(s=>`<span class="sb sb-${s==='poison'?'p':s==='slow'?'s':'b'}">${{poison:'☠️毒',slow:'🧊遅延',burn:'🔥炎上'}[s]||s}</span>`).join('');
+  document.getElementById('sbdg').innerHTML=(e.status||[]).map(s=>`<span class="sb sb-${s==='poison'?'p':s==='slow'?'s':'b'}">${{poison:'☠️毒',slow:'🧊遅延',burn:'🔥炎上'}[s]||s}</span>`).join('')+(e.charging?'<span class="sb sb-b">⚠️ 溜め中！全体攻撃くる</span>':'')+(e.enraged>=1?'<span class="sb sb-b">🔥激昂</span>':'');
   const ba=document.getElementById('ballies');
   if(ba){ ba.innerHTML=(G.party||[]).map(id=>{
     const a=ALLIES[id]; if(!a) return '';
@@ -2409,10 +2409,43 @@ function enemyTurn(){
     setTimeout(enemyAct,850);
   } else { enemyAct(); }
 }
+// ボス専用ギミック：激昂フェーズ／溜め→全体大技／自己回復。turnを消費したらtrueを返す
+function bossGimmick(e){
+  if(e.enraged==null) e.enraged=0;
+  const ratio=e.hp/e.mhp;
+  // 激昂（HP閾値で強化・パッシブ、ターンは消費しない）
+  if(e.enraged<1 && ratio<=0.5){ e.enraged=1; e.atk=Math.floor(e.atk*1.3); setLog(`🔥 ${e.name}は<span class="hl">激昂</span>した！攻撃力が上がった！`); flash('rgba(232,74,74,.4)'); sfx('rare'); shakeEnemy(); updateBUI(); }
+  else if(e.enraged<2 && ratio<=0.25){ e.enraged=2; e.atk=Math.floor(e.atk*1.25); setLog(`🔥🔥 ${e.name}は最後の力を振り絞る！さらに強大に！`); flash('rgba(232,74,74,.55)'); sfx('rare'); shakeEnemy(); updateBUI(); }
+  // 溜め→全体大技の解放
+  if(e.charging){
+    e.charging=false;
+    const p=G.p; explosionFx(); sfx('explosion'); flash('rgba(255,120,20,.55)');
+    const gm=G.buffs.guard>0?0.6:1; if(G.buffs.guard>0)G.buffs.guard--;
+    let msg=`💥 ${e.name}の<span class="hl">全体攻撃</span>！`;
+    const hd=Math.max(1,Math.floor((e.atk*1.1-Math.floor(p.def*.4))*gm)); p.hp=Math.max(0,p.hp-hd); popDmg(hd,'#ff5500',true); msg+=` アルシア${hd}`;
+    (G.party||[]).forEach(id=>{ const st=G.abt&&G.abt[id]; const a=ALLIES[id]; if(!st||st.down||!a)return; const d=Math.max(1,Math.floor((e.atk*0.9-a.def)*gm)); st.hp=Math.max(0,st.hp-d); if(st.hp<=0){st.down=true;msg+=` / ${a.name}戦闘不能`;} else msg+=` / ${a.name}${d}`; });
+    setLog(msg); updateBUI();
+    if(p.hp<=0){ battleLose(); return true; }
+    if(G.buffs.collapse>0){ G.buffs.collapse--; setLog('アルシアは動けない…！'); updateBUI(); setTimeout(enemyTurn,1000); return true; }
+    beginPlayerTurn(); return true;
+  }
+  // 溜め開始（次ターンに全体攻撃を予告）
+  if(Math.random()<0.22){
+    e.charging=true; setLog(`⚠️ ${e.name}が力を溜め始めた…！次の全体攻撃に備えろ！`); sfx('magic'); shakeEnemy(); updateBUI();
+    beginPlayerTurn(); return true;
+  }
+  // 低HPで自己回復（稀）
+  if(ratio<0.4 && Math.random()<0.15){
+    const h=Math.floor(e.mhp*0.12); e.hp=Math.min(e.mhp,e.hp+h); popDmg('+'+h,'#27c96a',false);
+    setLog(`✨ ${e.name}は闇の力で${h}回復した…！`); sfx('heal'); updateBUI(); beginPlayerTurn(); return true;
+  }
+  return false;
+}
 function enemyAct(){
   if(!G.inBattle) return;
   const p=G.p,e=G.enemy;
   if(e.status?.includes('slow')&&Math.random()<.4){setLog(`🧊 ${e.name}は動きが遅い！`);if(G.buffs.shield)G.buffs.shield--;beginPlayerTurn();return;}
+  if(e.boss && bossGimmick(e)) return;
   // ターゲット選択（主人公を狙いやすいが、生存中の仲間も狙う）
   const targets=[{type:'hero',w:3}];
   (G.party||[]).forEach(id=>{ if(G.abt&&G.abt[id]&&!G.abt[id].down) targets.push({type:'ally',id,w:1}); });
@@ -2733,7 +2766,7 @@ function reviveAndResume(){
   const n=G.story.bossKills||1, s=bossStats(n), e=G.enemy;
   e.name=`滅びの竜 ヴァルガ ＋${n}`; e.lv=15+n*3;
   e.mhp=s.mhp; e.hp=s.mhp; e.atk=s.atk; e.def=s.def; e.xp=s.xp; e.gold=s.gold;
-  e.status=[]; e.final=true; e.boss=true;
+  e.status=[]; e.final=true; e.boss=true; e.enraged=0; e.charging=false;
   G.inBattle=true; G.myTurn=true; G.buffs={};
   explosionFx(); sfx('explosion'); playBGM('boss');
   setLog(`💀 だが魔王は滅びない――！ ヴァルガは更なる力を得て<span class="hl">復活</span>した！（${n+1}体目・強化＋${n}）`);
