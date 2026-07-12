@@ -374,7 +374,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="t-div"></div>
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.13-b</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.13-c</div>
 </div>
 
 <!-- GAME -->
@@ -514,6 +514,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 <div class="ov" id="bitm" onclick="closeM('bitm')"><div class="modal" onclick="event.stopPropagation()">
   <div class="mhd"><span class="mtt">🧪 アイテム選択</span><button class="mx" onclick="closeM('bitm')">✕</button></div>
   <div class="mbd" id="bitbd"></div>
+</div></div>
+
+<div class="ov" id="evm"><div class="modal" onclick="event.stopPropagation()">
+  <div class="mhd"><span class="mtt" id="evtt">🎈 できごと</span></div>
+  <div class="mbd">
+    <div id="evico" style="text-align:center;font-size:46px;margin:4px 0 8px">🎁</div>
+    <div id="evtx" style="font-size:13px;line-height:1.8;text-align:center;margin-bottom:14px;color:var(--text)"></div>
+    <div id="evch" class="slist"></div>
+  </div>
 </div></div>
 
 <div class="toast" id="toast"></div>
@@ -1367,7 +1376,42 @@ function onArrive(){
   // 1歩到着時の処理（エンカウント判定など）
   updateLL(); checkNearby();
   const z=getZone();
-  if(z!=='village'&&Math.random()<.16){ triggerBattle(false); }
+  if(z==='village') return;
+  if(!G.inBattle && Math.random()<0.09){ fireEvent(); return; } // 道中ランダムイベント
+  if(Math.random()<.16){ triggerBattle(false); }
+}
+
+// ── 道中ランダムイベント ──
+const EVENTS=[
+  ()=>({ico:'🎁',title:'宝箱発見！',tx:'道端に古びた宝箱が落ちている。開けてみる？',choices:[
+    {label:'開ける',act:()=>{ if(Math.random()<0.15){ const d=Math.max(5,Math.floor(G.p.mhp*0.1)); G.p.hp=Math.max(1,G.p.hp-d); sfx('enemyhit'); toast(`💥 罠だった！${d}ダメージ…`); } else { const g=120+Math.floor(Math.random()*380); G.p.gold+=g; sfx('coin'); toast(`💰 ${g}ゴールドを見つけた！`); } }},
+    {label:'やめておく',act:()=>{}} ]}),
+  ()=>({ico:'🧺',title:'旅の行商人',tx:'「やあ！掘り出し物だよ。ポーション2本セット、特別に120Gでどう？」',choices:[
+    {label:'買う（120G）',act:()=>{ if(G.p.gold<120){toast('ゴールドが足りない…');return;} G.p.gold-=120; const it=G.items.find(i=>i.id==='pot'); if(it)it.qty+=2; sfx('coin'); toast('🧪 ポーション×2を手に入れた！'); }},
+    {label:'いらない',act:()=>{}} ]}),
+  ()=>({ico:'⛲',title:'癒やしの泉',tx:'澄んだ泉が湧いている。飲むと疲れが癒えそうだ。',choices:[
+    {label:'飲む',act:()=>{ G.p.hp=G.p.mhp; G.p.mp=G.p.mmp; if(G.abt)Object.values(G.abt).forEach(s=>{if(!s.down)s.hp=s.mhp;}); sfx('heal'); toast('✨ HP・MPが全回復した！'); }},
+    {label:'やめておく',act:()=>{}} ]}),
+  ()=>({ico:'🕳️',title:'落とし穴！',tx:'足元の地面が突然抜けた――！',choices:[
+    {label:'いてっ！',act:()=>{ const d=Math.max(5,Math.floor(G.p.mhp*0.12)); G.p.hp=Math.max(1,G.p.hp-d); sfx('enemyhit'); toast(`💥 落下で${d}ダメージ！`); }} ]}),
+  ()=>({ico:'🧙',title:'謎の旅人',tx:'フードを被った旅人が、あなたに気まぐれな施しをくれた。',choices:[
+    {label:'礼を言う',act:()=>{ if(Math.random()<0.5){ const g=200+Math.floor(Math.random()*300); G.p.gold+=g; sfx('coin'); toast(`💰 路銀を${g}もらった！`);} else { gainXP(80); sfx('levelup'); toast('📖 旅の知恵でXP+80！'); } }} ]}),
+  ()=>({ico:'⛩️',title:'女神の祠',tx:'ひっそりと佇む祠。祈りを捧げると、体が軽くなった気がする。',choices:[
+    {label:'祈る',act:()=>{ const stat=['atk','def','mag','spd'][Math.floor(Math.random()*4)]; G.p[stat]+=2; sfx('rare'); toast(`🙏 ${{atk:'攻撃力',def:'守備力',mag:'魔力',spd:'素早さ'}[stat]}が永続的に +2！`); }} ]}),
+];
+function fireEvent(){
+  const ev=EVENTS[Math.floor(Math.random()*EVENTS.length)]();
+  G._ev=ev;
+  document.getElementById('evtt').textContent='🎈 '+ev.title;
+  document.getElementById('evico').textContent=ev.ico;
+  document.getElementById('evtx').textContent=ev.tx;
+  document.getElementById('evch').innerHTML=ev.choices.map((c,i)=>`<div class="innbtn" onclick="evChoice(${i})">${c.label}</div>`).join('');
+  sfx('select'); document.getElementById('evm').classList.add('show');
+}
+function evChoice(i){
+  const ev=G._ev; document.getElementById('evm').classList.remove('show'); G._ev=null;
+  if(ev&&ev.choices[i]&&ev.choices[i].act) ev.choices[i].act();
+  updateUI(); saveGame(true);
 }
 
 // 旧API互換
