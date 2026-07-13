@@ -381,10 +381,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="t-emb">⚔️</div>
   <div><div class="t-h1">クロニクル・オブ・エターニア</div><div class="t-sub">CHRONICLE OF ETARNIA</div></div>
   <div class="t-div"></div>
-  <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
-  <div class="t-sub">タッチして旅立て</div>
+  <div id="titlebtns"></div>
+  <div class="t-sub" id="titlehint">タッチして旅立て</div>
   <div class="t-sub" style="font-size:11px;color:var(--cyan);cursor:pointer;text-decoration:underline" onclick="openHelp()">📖 あそびかた</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.13-i</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.13-j</div>
 </div>
 
 <!-- GAME -->
@@ -3298,8 +3298,32 @@ function startGame(){
   } else { pumpStory(); }
 }
 
+// タイトル：セーブ有無で「つづきから／はじめから」を出し分け
+function titleInit(){
+  const box=document.getElementById('titlebtns'), hint=document.getElementById('titlehint');
+  if(!box) return;
+  let save=null; try{ save=JSON.parse(localStorage.getItem('et2sv')||'null'); }catch(e){}
+  if(save && save.p){
+    const lv=save.p.lv||1, ci=(save.story&&save.story.idx)||0;
+    const chap=['プロローグ','第一章','第二章','第三章','終章','クリア済み'][Math.min(ci,5)]||'';
+    box.innerHTML=`<button class="t-btn" onclick="startGame()">▶ つづきから<br><small style="font-size:11px;font-weight:400;opacity:.85">アルシア Lv.${lv} ／ ${chap}</small></button>
+      <div class="t-sub" style="font-size:11px;color:var(--muted);cursor:pointer;margin-top:12px;text-decoration:underline" onclick="newGameConfirm()">🔄 最初からはじめる</div>`;
+    if(hint) hint.textContent='つづきから冒険を再開';
+  } else {
+    box.innerHTML=`<button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>`;
+    if(hint) hint.textContent='タッチして旅立て';
+  }
+}
+function newGameConfirm(){
+  if(confirm('本当に最初からはじめますか？\n現在のセーブデータは消えます。')){
+    try{ localStorage.removeItem('et2sv'); }catch(e){}
+    location.reload();
+  }
+}
+
 // Title stars
 (function(){const c=document.getElementById('tstar');for(let i=0;i<60;i++){const s=document.createElement('div');s.className='sp';s.style.cssText=`left:${Math.random()*100}%;top:${Math.random()*100}%;--d:${2+Math.random()*4}s;--dl:${Math.random()*4}s;opacity:${Math.random()}`;c.appendChild(s);}})();
+titleInit();
 
 document.addEventListener('keydown',e=>{
   if(G.inBattle) return;
