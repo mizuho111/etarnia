@@ -330,6 +330,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   font-size:16px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.5);touch-action:manipulation}
 .sndbtn:active{transform:scale(.9)}
 
+/* 複数体：敵セレクター */
+.enemyrow{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:4px;z-index:4}
+.echip{background:rgba(7,9,15,.7);border:2px solid var(--b2);border-radius:10px;padding:3px 8px 4px;
+  font-size:22px;line-height:1;cursor:pointer;text-align:center;min-width:44px;transition:all .12s;touch-action:manipulation}
+.echip.sel{border-color:var(--red);box-shadow:0 0 10px rgba(232,74,74,.6);transform:scale(1.08)}
+.echip.dead{opacity:.3;filter:grayscale(1);pointer-events:none}
+.echip .ehpb{width:100%;height:4px;background:#0a1020;border-radius:2px;overflow:hidden;border:1px solid var(--b1);margin-top:3px}
+.echip .ehpf{height:100%;background:linear-gradient(90deg,#6e0808,#e84a4a);border-radius:2px;transition:width .3s}
+
 /* BATTLE ALLIES */
 .ballies{position:absolute;left:6px;top:64px;display:flex;flex-direction:column;gap:5px;z-index:3;pointer-events:none}
 .ballyc{display:flex;align-items:center;gap:5px;background:rgba(7,9,15,.72);border:1px solid var(--b2);border-radius:9px;padding:2px 7px 2px 2px;box-shadow:0 2px 6px rgba(0,0,0,.4)}
@@ -375,7 +384,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
   <div class="t-sub" style="font-size:11px;color:var(--cyan);cursor:pointer;text-decoration:underline" onclick="openHelp()">📖 あそびかた</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.13-h</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.13-i</div>
 </div>
 
 <!-- GAME -->
@@ -449,6 +458,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
     </div>
   </div>
   <div class="bar">
+    <div class="enemyrow" id="enemyrow" style="display:none"></div>
     <div class="esp" id="esp">👹</div><div class="esh"></div>
     <div class="en" id="enm">スライム</div><div class="elv" id="elv">Lv.1</div>
     <div class="ehw"><div class="eht"><div class="ehf" id="ehf" style="width:100%"></div></div><div class="ehtx" id="ehtx">HP:50/50</div></div>
@@ -861,7 +871,7 @@ const G={
     {id:'slash',name:'魔法斬り',icon:'🗡️',desc:'魔力乗せ斬撃',mp:8,pow:40,t:'atk',el:'none'},
     {id:'fire',name:'ファイアボール',icon:'🔥',desc:'炎の球',mp:12,pow:55,t:'atk',el:'fire'},
     {id:'thun',name:'サンダーボルト',icon:'⚡',desc:'雷の貫通',mp:16,pow:70,t:'atk',el:'thunder'},
-    {id:'bliz',name:'ブリザード',icon:'❄️',desc:'氷の嵐・遅延効果',mp:18,pow:60,t:'atk',eff:'slow',el:'ice'},
+    {id:'bliz',name:'ブリザード',icon:'❄️',desc:'敵全体に氷の嵐・遅延',mp:18,pow:60,t:'atk',eff:'slow',el:'ice',aoe:true},
     {id:'heal',name:'ヒール',icon:'💚',desc:'HPを50回復',mp:10,pow:50,t:'self'},
     {id:'shld',name:'マジックシールド',icon:'🛡️',desc:'防御1ターン強化',mp:14,pow:0,t:'buff'},
     {id:'drain',name:'ドレイン',icon:'🌑',desc:'敵HPを吸収',mp:20,pow:45,t:'drain',el:'dark'},
@@ -1990,7 +2000,7 @@ function buyConsume(id,pr){
 const LEARN_SKILLS=[
   {id:'holy',name:'ホーリー',icon:'🌟',desc:'聖なる光・炎上付与',mp:24,pow:90,t:'atk',eff:'burn',cost:1200,el:'holy'},
   {id:'regen',name:'リジェネ',icon:'💟',desc:'HPを80回復',mp:18,pow:80,t:'self',cost:900},
-  {id:'meteo',name:'メテオ',icon:'☄️',desc:'隕石で特大ダメージ',mp:32,pow:120,t:'atk',cost:2000,el:'fire'},
+  {id:'meteo',name:'メテオ',icon:'☄️',desc:'敵全体に隕石の特大ダメージ',mp:32,pow:120,t:'atk',cost:2000,el:'fire',aoe:true},
   {id:'brave',name:'ブレイブ',icon:'🔥',desc:'3ターン攻撃力1.5倍',mp:16,pow:0,t:'buffatk',cost:1000},
   {id:'poisn',name:'ポイズンダート',icon:'☠️',desc:'毒を与える毒針',mp:14,pow:40,t:'atk',eff:'poison',cost:800},
   {id:'healall',name:'リバイブヒール',icon:'💖',desc:'味方全員のHPを大回復',mp:28,pow:120,t:'healall',cost:1800},
@@ -2031,6 +2041,7 @@ function spawnDungeonEnemy(f,isBoss){
   G.enemy={...base,name:(isBoss?'階層守護者 ':'')+base.name,hp,mhp:hp,
     atk:Math.floor(base.atk*sc*(isBoss?1.3:1)),def:Math.floor(base.def*sc),
     xp:Math.floor((base.xp||50)*sc),gold:Math.floor((base.gold||30)*sc),status:[],boss:isBoss,dungeon:true};
+  G.enemies=[G.enemy];G.tgt=0;
   G.inIndoor=false;G.inBattle=true;G.myTurn=true;G.buffs={};initAllyBattle();
   updateBUI();setLog(`地下${f}階 ― ${G.enemy.name} があらわれた！`);showScreen('bs');
   playBGM(isBoss?'boss':'battle');
@@ -2081,6 +2092,7 @@ function spawnArenaWave(){
     atk:Math.floor(base.atk*sc*(isBoss?1.3:1)),def:Math.floor(base.def*sc),
     xp:Math.floor((base.xp||50)*sc),gold:Math.floor((base.gold||30)*sc),
     status:[],boss:isBoss,arena:true};
+  G.enemies=[G.enemy];G.tgt=0;
   G.inBattle=true;G.myTurn=true;G.buffs={};initAllyBattle();
   updateBUI();setLog(`⚔️ WAVE ${w}${isBoss?'（強敵！）':''}！ ${G.enemy.name} があらわれた！`);showScreen('bs');
   playBGM(isBoss?'boss':'battle');
@@ -2095,6 +2107,17 @@ function templeBlessing(){
 }
 
 // ── BATTLE ──
+// ── 複数体バトル用ヘルパー ──
+function enemiesCleared(){ return !(G.enemies||[]).some(x=>x&&x.hp>0); }
+function syncTarget(){ if(!G.enemies||!G.enemies.length) return; if(!G.enemy||G.enemy.hp<=0){ const i=G.enemies.findIndex(x=>x&&x.hp>0); if(i>=0){ G.tgt=i; G.enemy=G.enemies[i]; } } }
+function afterHit(){ if(enemiesCleared()) return true; syncTarget(); return false; } // 全滅ならtrue、そうでなければ対象を再設定
+function setTarget(i){ if(G.enemies&&G.enemies[i]&&G.enemies[i].hp>0){ G.tgt=i; G.enemy=G.enemies[i]; sfx('select'); updateBUI(); } }
+function scaleEnemyFrom(base,hpSc,atkSc,defSc,rwSc){
+  return {...base,hp:Math.floor(base.mhp*hpSc),mhp:Math.floor(base.mhp*hpSc),
+    atk:Math.floor(base.atk*atkSc),def:Math.floor(base.def*defSc),
+    xp:Math.floor(base.xp*rwSc),gold:Math.floor(base.gold*rwSc),status:[]};
+}
+
 function triggerBattle(boss=false){
   let base;
   if(boss) base={...ENEMIES[7]};
@@ -2120,13 +2143,23 @@ function triggerBattle(boss=false){
   const atkSc=(1+(eff-1)*0.08)*nightB;
   const defSc=1+(eff-1)*0.06;
   const rwSc =1+(eff-1)*0.12;
-  G.enemy={...base,hp:Math.floor(base.mhp*hpSc),mhp:Math.floor(base.mhp*hpSc),
-    atk:Math.floor(base.atk*atkSc),def:Math.floor(base.def*defSc),
-    xp:Math.floor(base.xp*rwSc),gold:Math.floor(base.gold*rwSc),status:[]};
+  // 群れ生成（ボス・レアは単体、それ以外は1〜3体）
+  let list=[scaleEnemyFrom(base,hpSc,atkSc,defSc,rwSc)];
+  if(!boss && !base.rare){
+    const z=getZone();
+    const pool = z==='dungeon' ? [ENEMIES[4],ENEMIES[5],ENEMIES[6]]
+               : z==='field'   ? [ENEMIES[0],ENEMIES[1],ENEMIES[2],ENEMIES[8],ENEMIES[9],ENEMIES[10],ENEMIES[11]]
+               :                  [ENEMIES[0],ENEMIES[1],ENEMIES[2],ENEMIES[3],ENEMIES[8]];
+    const r=Math.random(); const cnt=r<0.5?1:(r<0.82?2:3);
+    for(let k=1;k<cnt;k++){ list.push(scaleEnemyFrom({...pool[Math.floor(Math.random()*pool.length)]},hpSc,atkSc,defSc,rwSc)); }
+  }
+  G.enemies=list; G.tgt=0; G.enemy=list[0];
   G.inBattle=true;G.myTurn=true;G.buffs={};initAllyBattle();
-  let intro=`${G.enemy.name}があらわれた！`;
+  let intro;
   if(G.enemy.rare) intro=`✨ ${G.enemy.name}があらわれた！ 逃げられる前に倒せ！`;
-  else { const wnote=rain?' 🌧雨：雷が強く炎が弱い':(night?' 🌙夜：敵が手強い':''); if(wnote) intro+=wnote; }
+  else if(list.length>1) intro=`魔物の群れ（${list.length}体）があらわれた！`;
+  else intro=`${G.enemy.name}があらわれた！`;
+  if(!G.enemy.rare){ const wnote=rain?' 🌧雨：雷が強く炎が弱い':(night?' 🌙夜：敵が手強い':''); if(wnote) intro+=wnote; }
   updateBUI();setLog(intro);showScreen('bs');
   playBGM(G.enemy.boss?'boss':'battle'); if(G.party.length) setTimeout(()=>partyBanter('start'),500);
   // Battle bg particles
@@ -2174,6 +2207,7 @@ function triggerFinalBoss(){
   G.battleCtx={night:getDayAlpha()>0.55,rain:(G.weather==='rain'||G.weather==='thunder'),weather:G.weather||'clear'};
   const base={name:'滅びの竜 ヴァルガ'+(n?` ＋${n}`:''),img:'e_dragon',icon:'🐉',lv:15+n*3,boss:true,weak:'holy',resist:'fire',...s};
   G.enemy={...base,hp:base.mhp,status:[],final:true};
+  G.enemies=[G.enemy];G.tgt=0;
   G.inBattle=true;G.myTurn=true;G.buffs={};initAllyBattle();
   updateBUI();setLog(n?`甦りし滅びの竜ヴァルガ＋${n}が立ちはだかる！`:'滅びの竜ヴァルガが立ちはだかる！世界の命運は、お前に懸かっている！');showScreen('bs');
   playBGM('boss'); if(G.party.length) setTimeout(()=>partyBanter('start'),500);
@@ -2183,7 +2217,7 @@ function triggerFinalBoss(){
 }
 
 function updateBUI(){
-  const p=G.p,e=G.enemy;
+  const p=G.p,e=G.enemy||{hp:0,mhp:1,name:'',icon:'',lv:1,status:[]};
   document.getElementById('blv').textContent=p.lv;
   document.getElementById('bhb').style.width=(p.hp/p.mhp*100)+'%';
   document.getElementById('bhn').textContent=`${p.hp}/${p.mhp}`;
@@ -2210,6 +2244,15 @@ function updateBUI(){
     return `<div class="ballyc${down?' down':''}${ready?' ready':''}"><img src="${im?im.src:''}"><div class="binfo"><span class="bnm">${a.name}${down?' (戦闘不能)':ready?' <span style="color:var(--gold)">必殺OK!</span>':''}</span><div class="bhpb"><div class="bhpf" style="width:${pct}%"></div></div><div class="bspb"><div class="bspf" style="width:${sp}%"></div></div></div></div>`;
   }).join(''); }
   const tc=document.getElementById('tacchip'); if(tc){ tc.textContent='作戦:'+({auto:'おまかせ',attack:'集中攻撃',defend:'守り重視',save:'温存'}[G.tactics||'auto']); }
+  const er=document.getElementById('enemyrow');
+  if(er){
+    const list=(G.enemies||[]);
+    if(list.length>1){
+      er.style.display='flex';
+      er.innerHTML=list.map((en,i)=>{ const dead=!en||en.hp<=0; const sel=(i===G.tgt&&!dead);
+        return `<div class="echip${sel?' sel':''}${dead?' dead':''}" onclick="setTarget(${i})">${(en&&en.icon)||'👾'}<div class="ehpb"><div class="ehpf" style="width:${dead?0:Math.max(0,en.hp/en.mhp*100)}%"></div></div></div>`; }).join('');
+    } else { er.style.display='none'; }
+  }
 }
 
 function setLog(msg){document.getElementById('blog').innerHTML=msg;}
@@ -2229,8 +2272,9 @@ function doAtk(){
   sfx('attack'); shakeEnemy();
   popDmg(dmg,crit?'#f5c842':(wEl!=='none'&&ELEMENTS[wEl]?ELEMENTS[wEl].c:'#e84a4a'),false);
   setLog(`アルシアの${wEl!=='none'&&ELEMENTS[wEl]?ELEMENTS[wEl].n+'斬り':'こうげき'}！${crit?'<span class="hl">クリティカル！</span>':''} <span class="hl">${e.name}</span>に${dmg}ダメージ！${elemTag(wEl,e)}`);
-  tickStatus();updateBUI();
-  if(e.hp<=0){battleWin();return;}
+  tickStatus();
+  if(afterHit()){battleWin();return;}
+  updateBUI();
   setTimeout(enemyTurn,bd(950));
 }
 
@@ -2336,29 +2380,35 @@ function resolveBSk(sk){
     setLog('🌋 アルシアが長い詠唱を始めた……');
     startChant(()=>{
       if(!G.inBattle) return;
-      const dmg=350+p.mag*3-Math.floor(e.def*.2);
-      e.hp=Math.max(0,e.hp-dmg); popDmg(dmg,'#ff5500',false);
+      let total=0; (G.enemies||[e]).filter(x=>x&&x.hp>0).forEach(tg=>{ const dmg=Math.floor((350+p.mag*3-Math.floor(tg.def*.2))*elemMult('fire',tg)); tg.hp=Math.max(0,tg.hp-dmg); total+=dmg; popDmg(dmg,'#ff5500',false); });
       p.mp=0; G.buffs.collapse=1; explosionFx(); sfx('explosion'); shakeEnemy();
-      setLog(`🌋 <span class="hl">エクスプロージョン！！</span> 全魔力を解き放つ大爆発が${e.name}を飲み込んだ！<span class="hl">${dmg}</span>の超ダメージ！`);
-      tickStatus(); updateBUI();
-      if(e.hp<=0){ battleWin(); return; }
+      setLog(`🌋 <span class="hl">エクスプロージョン！！</span> 全てを飲み込む大爆発！敵全体に<span class="hl">${total}</span>の超ダメージ！`);
+      tickStatus();
+      if(afterHit()){ battleWin(); return; }
       if(p.hp<=0){ battleLose(); return; }
+      updateBUI();
       setTimeout(enemyTurn,bd(1100));
     });
     return; // 共通末尾(即enemyTurn)をスキップ。詠唱完了後に処理する
   } else {
     const magB=G.buffs.atkup>0?1.5:1;
     const el=sk.el||'none';
-    let dmg=Math.max(1,Math.floor((sk.pow+Math.floor(p.mag*.6))*magB)-Math.floor(e.def*.3)+Math.floor(Math.random()*12));
-    dmg=Math.floor(dmg*elemMult(el,e));
-    e.hp=Math.max(0,e.hp-dmg);
-    popDmg(dmg,(ELEMENTS[el]&&ELEMENTS[el].c)||'#a855f7',false);
-    setLog(`✨ <span class="hl">${sk.name}</span>！${e.name}に<span class="hl">${dmg}</span>の魔法ダメージ！${elemTag(el,e)}`);
-    if(sk.eff&&!e.status.includes(sk.eff)) e.status.push(sk.eff);
+    const col=(ELEMENTS[el]&&ELEMENTS[el].c)||'#a855f7';
+    const targets=sk.aoe?(G.enemies||[e]).filter(x=>x&&x.hp>0):[e];
+    let total=0;
+    targets.forEach(tg=>{
+      let dmg=Math.max(1,Math.floor((sk.pow+Math.floor(p.mag*.6))*magB)-Math.floor(tg.def*.3)+Math.floor(Math.random()*12));
+      dmg=Math.floor(dmg*elemMult(el,tg)); tg.hp=Math.max(0,tg.hp-dmg); total+=dmg; popDmg(dmg,col,false);
+      if(sk.eff&&!tg.status.includes(sk.eff)) tg.status.push(sk.eff);
+    });
+    setLog(sk.aoe
+      ? `✨ <span class="hl">${sk.name}</span>！敵全体に<span class="hl">${total}</span>の魔法ダメージ！${elemTag(el,e)}`
+      : `✨ <span class="hl">${sk.name}</span>！${e.name}に<span class="hl">${total}</span>の魔法ダメージ！${elemTag(el,e)}`);
   }
-  tickStatus();updateBUI();
-  if(e.hp<=0){battleWin();return;}
+  tickStatus();
+  if(afterHit()){battleWin();return;}
   if(p.hp<=0){battleLose();return;}
+  updateBUI();
   setTimeout(enemyTurn,bd(950));
 }
 
@@ -2384,7 +2434,7 @@ function useBItem(id){
     G.enemy.hp=Math.max(0,G.enemy.hp-it.v);popDmg(it.v,'#ff8c42',false);
     sfx('explosion'); shakeEnemy();
     setLog(`💣 ${it.name}！${G.enemy.name}に${it.v}ダメージ！`);
-    tickStatus();updateBUI();if(G.enemy.hp<=0){battleWin();return;}
+    tickStatus();if(afterHit()){battleWin();return;}updateBUI();
     setTimeout(enemyTurn,bd(950));return;
   }
   sfx('item');applyItem(it);tickStatus();updateBUI();setTimeout(enemyTurn,bd(950));
@@ -2596,11 +2646,59 @@ function allyTurns(){
 
 function enemyTurn(){
   if(!G.inBattle) return;
+  const multi=(G.enemies&&G.enemies.filter(x=>x&&x.hp>0).length>1);
   if(G.party.length){
     allyTurns(); updateBUI();
-    if(G.enemy.hp<=0){ battleWin(); return; }
-    setTimeout(enemyAct,bd(850));
-  } else { enemyAct(); }
+    if(afterHit()){ battleWin(); return; }
+    setTimeout(()=>{ if(multi) startEnemyPhase(); else enemyAct(); }, bd(850));
+  } else { if(multi) startEnemyPhase(); else enemyAct(); }
+}
+// 複数体：各敵が順に1回行動
+function startEnemyPhase(){
+  // かばう・守りはフェーズ単位で1回だけ処理
+  G._phaseGuard = G.buffs.guard>0; if(G.buffs.guard>0) G.buffs.guard--;
+  G._phaseTaunt = (G.taunt&&G.taunt.t>0)?G.taunt.id:null; if(G.taunt){ G.taunt.t--; if(G.taunt.t<=0) G.taunt=null; }
+  enemyActChain(0);
+}
+function enemyActChain(i){
+  if(!G.inBattle) return;
+  const list=G.enemies||[];
+  while(i<list.length && (!list[i]||list[i].hp<=0)) i++;
+  if(i>=list.length){ endEnemyPhase(); return; }
+  G.enemy=list[i]; G.tgt=i;
+  enemyActOne(()=>{ setTimeout(()=>enemyActChain(i+1), bd(600)); });
+}
+function endEnemyPhase(){
+  syncTarget(); updateBUI();
+  if(G.buffs.collapse>0){ G.buffs.collapse--; setLog('アルシアは魔力を使い果たして倒れ込み、動けない…！'); setTimeout(enemyTurn,bd(1000)); return; }
+  beginPlayerTurn();
+}
+// 1体分の攻撃（複数体用・簡易：ボスギミック/逃走は単体戦のenemyActが担当）
+function enemyActOne(done){
+  if(!G.inBattle) return;
+  const p=G.p,e=G.enemy; const gm=G._phaseGuard?0.6:1;
+  if(e.status?.includes('slow')&&Math.random()<.4){ setLog(`🧊 ${e.name}は動きが遅い！`); updateBUI(); done(); return; }
+  const targets=[{type:'hero',w:3}];
+  (G.party||[]).forEach(id=>{ if(G.abt&&G.abt[id]&&!G.abt[id].down) targets.push({type:'ally',id,w:1}); });
+  let tw=targets.reduce((s,t)=>s+t.w,0), rr=Math.random()*tw, tgt=targets[0];
+  for(const t of targets){ if((rr-=t.w)<0){ tgt=t; break; } }
+  if(G._phaseTaunt && G.abt[G._phaseTaunt] && !G.abt[G._phaseTaunt].down){ tgt={type:'ally',id:G._phaseTaunt}; }
+  if(tgt.type==='hero'){
+    const def=p.def+(G.buffs.shield>0?25:0); if(G.buffs.shield>0)G.buffs.shield--;
+    const dmg=Math.max(1,Math.floor((e.atk-Math.floor(def*.45)+Math.floor(Math.random()*6))*gm));
+    p.hp=Math.max(0,p.hp-dmg); setLog(`${e.name}のこうげき！アルシアに<span class="hl">${dmg}</span>ダメージ！`); sfx('enemyhit'); flash('rgba(232,74,74,.4)'); popDmg(dmg,'#e84a4a',true); updateBUI();
+    if(p.hp<=0){ battleLose(); return; }
+    if(G.buffs.counter>0){ G.buffs.counter=0; const cd=dmg*2; e.hp=Math.max(0,e.hp-cd); sfx('attack'); shakeEnemy(); popDmg(cd,'#f5c842',false); setLog(`🥋 カウンター！${e.name}に<span class="hl">${cd}</span>の反撃！`); updateBUI(); if(enemiesCleared()){ battleWin(); return; } }
+    else maybeInflictPlayer(e);
+  } else {
+    const a=ALLIES[tgt.id], st=G.abt[tgt.id];
+    const dmg=Math.max(1,Math.floor((Math.floor(e.atk*0.8)-a.def+Math.floor(Math.random()*6))*gm));
+    st.hp=Math.max(0,st.hp-dmg); popDmg(dmg,'#e84a4a',true); sfx('enemyhit');
+    if(st.hp<=0){ st.down=true; setLog(`${e.name}の攻撃！<span class="hl">${a.name}</span>は倒れてしまった…！`); }
+    else setLog(`${e.name}のこうげき！${a.name}に<span class="hl">${dmg}</span>ダメージ！`);
+    updateBUI();
+  }
+  done();
 }
 // ボス専用ギミック：激昂フェーズ／溜め→全体大技／自己回復。turnを消費したらtrueを返す
 function bossGimmick(e){
@@ -2972,6 +3070,7 @@ function reviveAndResume(){
   e.name=`滅びの竜 ヴァルガ ＋${n}`; e.lv=15+n*3;
   e.mhp=s.mhp; e.hp=s.mhp; e.atk=s.atk; e.def=s.def; e.xp=s.xp; e.gold=s.gold;
   e.status=[]; e.final=true; e.boss=true; e.enraged=0; e.charging=false;
+  G.enemies=[e]; G.tgt=0; G.enemy=e;
   G.inBattle=true; G.myTurn=true; G.buffs={};
   explosionFx(); sfx('explosion'); playBGM('boss');
   setLog(`💀 だが魔王は滅びない――！ ヴァルガは更なる力を得て<span class="hl">復活</span>した！（${n+1}体目・強化＋${n}）`);
@@ -2982,6 +3081,7 @@ function reviveAndResume(){
 function triggerTrueBoss(){
   const s={mhp:6000,atk:160,def:60,xp:30000,gold:30000};
   G.enemy={name:'星辰を喰らう者 エクリプス',img:'e_lord',icon:'🌑',lv:40,boss:true,trueFinal:true,...s,hp:s.mhp,status:[]};
+  G.enemies=[G.enemy];G.tgt=0;
   G.inBattle=true; G.myTurn=true; G.buffs={};
   showCutscene(STORY_TRUE_INTRO,()=>{
     initAllyBattle();
