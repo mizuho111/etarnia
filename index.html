@@ -374,7 +374,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="t-div"></div>
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.13-e</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.13-f</div>
 </div>
 
 <!-- GAME -->
@@ -622,7 +622,44 @@ const ALLIES={
   elmia: {id:'elmia', name:'エルミア',role:'氷結魔道士',img:'elmia',cost:2600,atk:0, mag:42,def:6, hp:75, kind:'mag', desc:'凍てつく魔法で敵を砕く村一番の魔法使い',
     lines:{start:'凍てつきなさい。',quip:['氷の刃を！','逃がさないわ。','これでおしまい。'],win:'ふぅ、お見事でしょう？'}},
 };
-function allyMax(a){ return Math.floor(a.hp*(1+Math.min(G.p.lv,12)*0.18)); }
+// ── 仲間との絆（好感度）──
+const BOND_THRESH=[10,25,50];
+function bondLv(id){ const p=(G.bond&&G.bond[id])||0; let lv=0; BOND_THRESH.forEach(t=>{ if(p>=t) lv++; }); return lv; }
+const BOND_TALKS={
+  archer:[
+    [{img:'archer',who:'リーフ',text:'なあアルシア、お前と組むと不思議と調子が出るんだ。もっと頼ってくれよな！'}],
+    [{img:'archer',who:'リーフ',text:'お前を守れるなら、この矢は何本でも放つさ。背中は任せろ。'}],
+    [{img:'archer',who:'リーフ',text:'……お前と旅して分かった。俺は、お前と世界を見たいんだ。どこまでも付き合うぜ。'}],
+  ],
+  knight:[
+    [{img:'knight',who:'セレナ',text:'あなたの戦い方、見事です。私も剣士として学ぶことばかり。'}],
+    [{img:'knight',who:'セレナ',text:'あなたを守る盾であることが、今の私の誇りです。'}],
+    [{img:'knight',who:'セレナ',text:'この命、あなたと世界のために。……騎士としてではなく、私自身の意志で。'}],
+  ],
+  mage:[
+    [{img:'mage',who:'ヴェル',text:'……フン。貴公の魔力の使い方、悪くない。少しは認めてやろう。'}],
+    [{img:'mage',who:'ヴェル',text:'闇の力は孤独だと思っていた。だが貴公の隣は……存外、悪くない。'}],
+    [{img:'mage',who:'ヴェル',text:'この闇のすべては貴公のために。……礼など期待していないがな。'}],
+  ],
+  priest:[
+    [{img:'priest',who:'フィーナ',text:'アルシア様が無事だと、私も嬉しいんです。もっとお守りさせてください。'}],
+    [{img:'priest',who:'フィーナ',text:'あなたの光になれるなら、私はどんな祈りも捧げます。'}],
+    [{img:'priest',who:'フィーナ',text:'旅の終わりまで、ずっとお傍に。……これは僧侶としてではなく、私の願いです。'}],
+  ],
+};
+function gainBond(){
+  if(!G.bond) G.bond={archer:0,knight:0,mage:0,priest:0};
+  (G.party||[]).forEach(id=>{ if(!ALLIES[id])return; const before=bondLv(id); G.bond[id]=(G.bond[id]||0)+2; const after=bondLv(id); if(after>before){ G._bondTalks=G._bondTalks||[]; G._bondTalks.push({id,lv:after}); } });
+}
+function playBondTalks(){
+  if(_cut || !G._bondTalks || !G._bondTalks.length) return;
+  const t=G._bondTalks.shift(); const a=ALLIES[t.id]; if(!a){ playBondTalks(); return; }
+  const scenes=(BOND_TALKS[t.id]||[])[t.lv-1];
+  toast(`❤️ ${a.name}との絆が深まった！（Lv${t.lv}／能力アップ）`); sfx('levelup');
+  if(scenes&&scenes.length){ showCutscene(scenes,()=>{ saveGame(true); playBondTalks(); }); }
+  else { saveGame(true); playBondTalks(); }
+}
+function allyMax(a){ return Math.floor(a.hp*(1+Math.min(G.p.lv,12)*0.18)) + (a&&a.id?bondLv(a.id)*18:0); }
 function initAllyBattle(){
   G.abt={};
   (G.party||[]).forEach(id=>{ const a=ALLIES[id]; if(!a) return; const m=allyMax(a); G.abt[id]={hp:m,mhp:m,down:false,sp:0}; });
@@ -812,6 +849,7 @@ const G={
   tactics:'auto',
   weather:'clear',
   settings:{speed:1,auto:false},
+  bond:{archer:0,knight:0,mage:0,priest:0},
   skills:[
     {id:'slash',name:'魔法斬り',icon:'🗡️',desc:'魔力乗せ斬撃',mp:8,pow:40,t:'atk',el:'none'},
     {id:'fire',name:'ファイアボール',icon:'🔥',desc:'炎の球',mp:12,pow:55,t:'atk',el:'fire'},
@@ -1696,9 +1734,10 @@ function renderContent(b){
       const joined=G.party.includes(a.id);
       const im=ALLY_IMGS[a.img];
       const statTxt=a.kind==='heal'?`回復役 / 魔力${a.mag}`:a.kind==='mag'?`魔法 / 魔力${a.mag}`:`物理 / 攻撃${a.atk}`;
+      const blv=bondLv(a.id); const bondTxt=joined?` <span style="color:#ff8fb0">${'❤️'.repeat(blv)||'♡'} 絆Lv${blv}</span>`:'';
       return `<div class="si" style="border-color:${joined?'var(--gold)':'var(--b1)'}">
         <div class="siico"><img src="${im?im.src:''}" style="height:46px;width:auto;display:block;border-radius:6px"></div>
-        <div class="sii"><div class="sin">${a.name}<span style="color:var(--m2);font-size:10px"> / ${a.role}</span></div><div class="sid">${a.desc}（${statTxt}）</div></div>
+        <div class="sii"><div class="sin">${a.name}<span style="color:var(--m2);font-size:10px"> / ${a.role}</span>${bondTxt}</div><div class="sid">${a.desc}（${statTxt}）</div></div>
         ${joined?`<button class="bkb" style="margin:0" onclick="dismissAlly('${a.id}')">外す</button>`:`<div class="sip" onclick="recruitAlly('${a.id}')" style="cursor:pointer">${a.cost}G<br><small style="font-size:9px;color:var(--green)">仲間にする</small></div>`}
       </div>`;
     }).join('');
@@ -2467,7 +2506,7 @@ function cycleTactics(){
   saveGame(true);
 }
 function allyTurns(){
-  const e=G.enemy, eff=Math.min(G.p.lv,12), sc=1+eff*0.12; let parts=[]; const specials=[];
+  const e=G.enemy, eff=Math.min(G.p.lv,12); let parts=[]; const specials=[];
   if(!G.abt) initAllyBattle();
   const tac=G.tactics||'auto';
   const gaugeRate = tac==='attack'?36 : tac==='defend'?20 : 28;
@@ -2477,6 +2516,7 @@ function allyTurns(){
     if(!G.inBattle||e.hp<=0) return;
     const a=ALLIES[id]; if(!a) return;
     const st=G.abt[id]; if(!st||st.down) return; // 戦闘不能はスキップ
+    const sc=(1+eff*0.12)*(1+bondLv(id)*0.06); // レベル＋絆で強化
     if(st.sp==null) st.sp=0;
     st.sp=Math.min(100, st.sp+gaugeRate);
     const canSp = st.sp>=100 && tac!=='save' && a.sp;
@@ -2892,9 +2932,10 @@ function battleWin(){
     dropMsg=` <span class="hl">🐉竜のうろこ×${n}</span>`;
   }
   dropMsg+=maybeDropLoot(e); // ランダムレア装備ドロップ
+  gainBond(); // 仲間との絆
   setLog(`${e.name}を倒した！ <span class="hl">XP+${e.xp}</span> <span class="hl">Gold+${e.gold}💰</span>${dropMsg}`);
   setTimeout(()=>{showScreen('gs');updateUI();renderMap();saveGame();playBGM('field');
-    storyOnKill(e.name); pumpStory();
+    storyOnKill(e.name); pumpStory(); playBondTalks();
   },1300);
 }
 
@@ -3066,7 +3107,7 @@ function toast(msg){
 }
 
 function saveGame(silent){
-  try{localStorage.setItem('et2sv',JSON.stringify({p:G.p,items:G.items,quests:G.quests,equip:G.equip,skills:G.skills,visited:[...G.visited],story:G.story,ownedWeapons:G.ownedWeapons,party:G.party,bounty:G.bounty,ach:G.ach,dex:G.dex,arena:{best:G.arena.best},dungeon:{best:G.dungeon.best},sp:G.sp,tree:G.tree,tactics:G.tactics,settings:G.settings,weather:G.weather}));if(!silent)toast('💾 セーブした！');}catch(e){}
+  try{localStorage.setItem('et2sv',JSON.stringify({p:G.p,items:G.items,quests:G.quests,equip:G.equip,skills:G.skills,visited:[...G.visited],story:G.story,ownedWeapons:G.ownedWeapons,party:G.party,bounty:G.bounty,ach:G.ach,dex:G.dex,arena:{best:G.arena.best},dungeon:{best:G.dungeon.best},sp:G.sp,tree:G.tree,tactics:G.tactics,settings:G.settings,weather:G.weather,bond:G.bond}));if(!silent)toast('💾 セーブした！');}catch(e){}
 }
 function loadSave(){
   try{const r=localStorage.getItem('et2sv');if(!r) return;const d=JSON.parse(r);
@@ -3082,6 +3123,7 @@ function loadSave(){
     if(d.tactics)G.tactics=d.tactics;
     if(d.settings)Object.assign(G.settings,d.settings);
     if(d.weather)G.weather=d.weather;
+    if(d.bond)Object.assign(G.bond,d.bond);
     if(d.bounty)G.bounty=d.bounty;
     if(d.ach)Object.assign(G.ach,d.ach);
     if(Array.isArray(d.dex))G.dex=d.dex;
