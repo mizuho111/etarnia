@@ -375,7 +375,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
   <div class="t-sub" style="font-size:11px;color:var(--cyan);cursor:pointer;text-decoration:underline" onclick="openHelp()">📖 あそびかた</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.13-g</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.13-h</div>
 </div>
 
 <!-- GAME -->
@@ -1120,10 +1120,10 @@ const CONTINENT_ENEMIES=[
 
 // 図鑑マスター（全モンスター一覧）
 const DEX_MASTER=[
-  ...ENEMIES.map(e=>({name:e.name,img:e.img,icon:e.icon})),
-  ...CONTINENT_ENEMIES.map(e=>({name:e.name,img:e.img,icon:e.icon})),
-  {name:'滅びの竜 ヴァルガ',img:'e_dragon',icon:'🐉'},
-  {name:'星辰を喰らう者 エクリプス',img:'e_lord',icon:'🌑'},
+  ...ENEMIES.map(e=>({name:e.name,img:e.img,icon:e.icon,weak:e.weak,resist:e.resist})),
+  ...CONTINENT_ENEMIES.map(e=>({name:e.name,img:e.img,icon:e.icon,weak:e.weak,resist:e.resist})),
+  {name:'滅びの竜 ヴァルガ',img:'e_dragon',icon:'🐉',weak:'holy',resist:'fire'},
+  {name:'星辰を喰らう者 エクリプス',img:'e_lord',icon:'🌑',weak:'holy',resist:'dark'},
 ];
 
 const ZONES=[
@@ -2827,9 +2827,15 @@ function fillRecords(){
   const dexHtml='<div class="estt" style="margin:14px 0 8px">📖 モンスター図鑑</div><div class="slist">'+DEX_MASTER.map(m=>{
     const seen=G.dex.includes(m.name);
     const im=seen&&m.img&&ENEMY_IMGS[m.img];
+    let info='未発見';
+    if(seen){
+      const w=m.weak&&ELEMENTS[m.weak]?`<span style="color:var(--gold)">弱点:${ELEMENTS[m.weak].n}</span>`:'';
+      const r=m.resist&&ELEMENTS[m.resist]?`<span style="color:var(--muted)"> 耐性:${ELEMENTS[m.resist].n}</span>`:'';
+      info=(w||r)?(w+r):'弱点なし';
+    }
     return `<div class="si" style="opacity:${seen?1:0.45}">
       <div class="siico">${im?`<img src="${im.src}" style="height:34px;width:auto;border-radius:5px">`:(seen?m.icon:'❔')}</div>
-      <div class="sii"><div class="sin">${seen?m.name:'？？？'}</div><div class="sid">${seen?'討伐済み':'未発見'}</div></div>
+      <div class="sii"><div class="sin">${seen?m.name:'？？？'}</div><div class="sid">${info}</div></div>
     </div>`;}).join('')+'</div>';
   document.getElementById('recbd').innerHTML=title+stats+achHtml+dexHtml;
 }
