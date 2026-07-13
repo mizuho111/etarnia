@@ -384,7 +384,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div id="titlebtns"></div>
   <div class="t-sub" id="titlehint">タッチして旅立て</div>
   <div class="t-sub" style="font-size:11px;color:var(--cyan);cursor:pointer;text-decoration:underline" onclick="openHelp()">📖 あそびかた</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.13-j</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.13-k</div>
 </div>
 
 <!-- GAME -->
@@ -867,6 +867,7 @@ const G={
   weather:'clear',
   settings:{speed:1,auto:false},
   bond:{archer:0,knight:0,mage:0,priest:0},
+  playSec:0,
   skills:[
     {id:'slash',name:'魔法斬り',icon:'🗡️',desc:'魔力乗せ斬撃',mp:8,pow:40,t:'atk',el:'none'},
     {id:'fire',name:'ファイアボール',icon:'🔥',desc:'炎の球',mp:12,pow:55,t:'atk',el:'fire'},
@@ -2906,7 +2907,24 @@ function recordKill(e){
   checkAchievements();
 }
 function openRecords(){ fillRecords(); openM('recm'); }
+function fmtTime(s){ s=Math.floor(s||0); const h=Math.floor(s/3600),m=Math.floor(s%3600/60); return h>0?`${h}時間${m}分`:`${m}分${s%60}秒`; }
+function completionPct(){
+  let pts=0;
+  pts+=Math.min(25, G.dex.length/DEX_MASTER.length*25);                       // 図鑑
+  pts+=Math.min(25, G.ach.unlocked.length/ACHIEVEMENTS.length*25);            // 実績
+  let sp=0; if(G.story&&G.story.ending) sp+=12; if(G.story&&G.story.trueCleared) sp+=13; pts+=Math.min(25,sp); // 物語
+  let cp=Math.min(10,(G.arena.best||0))+Math.min(8,(G.dungeon.best||0))+Math.min(7,(G.story&&G.story.bossKills||0)*2); pts+=Math.min(25,cp); // 挑戦
+  return Math.min(100,Math.round(pts));
+}
 function fillRecords(){
+  // 冒険の達成度サマリー
+  const pct=completionPct();
+  const clr=G.story&&G.story.trueCleared?'★ 真エンド到達':(G.story&&G.story.ending?'☆ エンディング到達':'物語 進行中');
+  const summary=`<div style="background:var(--p2);border:1px solid var(--g2);border-radius:12px;padding:14px 16px;margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="color:var(--gold);font-weight:800;font-size:13px">冒険の達成度</span><span style="color:var(--gold);font-size:24px;font-weight:900">${pct}%</span></div>
+    <div style="height:9px;background:#0a1020;border-radius:5px;overflow:hidden;border:1px solid var(--b1);margin:7px 0 10px"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#806000,#f5c842);transition:width .5s"></div></div>
+    <div class="ininf" style="text-align:left;font-size:11px;line-height:1.9">⏱ プレイ時間 ${fmtTime(G.playSec)} ｜ 🧙 アルシア Lv.${G.p.lv} ｜ ${clr}${pct>=100?'<br><b style="color:var(--gold)">✦ 完全制覇！すべてを極めた真の英雄だ ✦</b>':''}</div>
+  </div>`;
   // 称号
   const title=G.p.title?`<div class="ininf" style="text-align:center;color:var(--gold);font-size:14px;margin-bottom:6px">現在の称号：<b>${G.p.title}</b></div>`:'<div class="ininf" style="text-align:center;color:var(--m2);margin-bottom:6px">称号：まだ無し</div>';
   // 統計
@@ -2935,7 +2953,7 @@ function fillRecords(){
       <div class="siico">${im?`<img src="${im.src}" style="height:34px;width:auto;border-radius:5px">`:(seen?m.icon:'❔')}</div>
       <div class="sii"><div class="sin">${seen?m.name:'？？？'}</div><div class="sid">${info}</div></div>
     </div>`;}).join('')+'</div>';
-  document.getElementById('recbd').innerHTML=title+stats+achHtml+dexHtml;
+  document.getElementById('recbd').innerHTML=summary+title+stats+achHtml+dexHtml;
 }
 
 // ══════════ スキルツリー（育成分岐） ══════════
@@ -3235,7 +3253,7 @@ function toast(msg){
 }
 
 function saveGame(silent){
-  try{localStorage.setItem('et2sv',JSON.stringify({p:G.p,items:G.items,quests:G.quests,equip:G.equip,skills:G.skills,visited:[...G.visited],story:G.story,ownedWeapons:G.ownedWeapons,party:G.party,bounty:G.bounty,ach:G.ach,dex:G.dex,arena:{best:G.arena.best},dungeon:{best:G.dungeon.best},sp:G.sp,tree:G.tree,tactics:G.tactics,settings:G.settings,weather:G.weather,bond:G.bond}));if(!silent)toast('💾 セーブした！');}catch(e){}
+  try{localStorage.setItem('et2sv',JSON.stringify({p:G.p,items:G.items,quests:G.quests,equip:G.equip,skills:G.skills,visited:[...G.visited],story:G.story,ownedWeapons:G.ownedWeapons,party:G.party,bounty:G.bounty,ach:G.ach,dex:G.dex,arena:{best:G.arena.best},dungeon:{best:G.dungeon.best},sp:G.sp,tree:G.tree,tactics:G.tactics,settings:G.settings,weather:G.weather,bond:G.bond,playSec:G.playSec}));if(!silent)toast('💾 セーブした！');}catch(e){}
 }
 function loadSave(){
   try{const r=localStorage.getItem('et2sv');if(!r) return;const d=JSON.parse(r);
@@ -3252,6 +3270,7 @@ function loadSave(){
     if(d.settings)Object.assign(G.settings,d.settings);
     if(d.weather)G.weather=d.weather;
     if(d.bond)Object.assign(G.bond,d.bond);
+    if(typeof d.playSec==='number')G.playSec=d.playSec;
     if(d.bounty)G.bounty=d.bounty;
     if(d.ach)Object.assign(G.ach,d.ach);
     if(Array.isArray(d.dex))G.dex=d.dex;
@@ -3290,6 +3309,7 @@ function startGame(){
   const _sb=document.getElementById('sndbtn'); if(_sb) _sb.textContent=AUDIO.muted?'🔇':'🔊';
   audioInit(); playBGM('field');
   document.addEventListener('pointerdown',audioInit);
+  if(!G._clock){ G._clock=setInterval(()=>{ if(!document.hidden && !document.getElementById('ts').classList.contains('active')) G.playSec=(G.playSec||0)+1; },1000); }
   updateStoryUI();
   if(G.story.idx===0 && !G.story.introShown[0]){
     G.story.introShown[0]=true;
