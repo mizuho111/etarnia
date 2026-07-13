@@ -374,7 +374,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="t-div"></div>
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.13-c</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.13-d</div>
 </div>
 
 <!-- GAME -->
@@ -1628,6 +1628,13 @@ function renderContent(b){
           ? '<div class="ininf" style="color:var(--gold)">★ 最大まで強化済み（+10）！</div>'
           : `<div class="innbtn" style="border-color:#4a8fe8;color:#4af5d2" onclick="enhanceWeapon()">🔨 強化する（+${plus}→+${plus+1}）<br><small style="font-size:10px;font-weight:400">${cost}G${needU?` ＋ 竜のうろこ×${needU}`:''} ／ 攻撃+5${(w.mag>0)?' 魔力+3':''}</small></div>`}`;
       })()
+      +(function(){
+        const w=G.equip.weapon||{}; const wEl=w.el&&ELEMENTS[w.el]?ELEMENTS[w.el].n+'属性':'なし';
+        const ic={fire:'🔥',ice:'❄️',thunder:'⚡',dark:'🌑',holy:'🌟'};
+        return `<div class="estt" style="margin:16px 0 8px">🔮 属性エンチャント</div>
+        <div class="ininf" style="text-align:left;margin-bottom:8px">武器に属性を付与すると<b>通常攻撃が属性攻撃</b>になり、弱点・天候を突ける。<br>現在：<b style="color:var(--gold)">${wEl}</b></div>
+        <div class="slist">`+['fire','ice','thunder','dark','holy'].map(e=>`<div class="si" onclick="enchantWeapon('${e}')"><div class="siico">${ic[e]}</div><div class="sii"><div class="sin">${ELEMENTS[e].n}属性を付与</div><div class="sid">通常攻撃が${ELEMENTS[e].n}に</div></div><div class="sip">700G</div></div>`).join('')+`</div>`;
+      })()
       +`<div class="estt" style="margin:16px 0 8px">🐉 竜素材クラフト</div>
         <div class="ininf" style="text-align:left;margin-bottom:8px">竜から得た「竜のうろこ」で神話級の武器を鍛える。<br>所持: 🐉竜のうろこ ×${uroko}</div>
         <div class="innbtn" style="border-color:var(--gold);color:var(--gold)" onclick="craftMythic()">⚒️ 神話の竜剣を鍛える<br><small style="font-size:10px;font-weight:400">竜のうろこ×3 ＋ 5000G ／ ATK+70 MAG+40</small></div>`;
@@ -1744,6 +1751,14 @@ function buyWeapon(i){
   toast(`⚔️ ${s.n}を購入！装備した。`);updateUI();
 }
 
+// 武器に属性を付与
+function enchantWeapon(el){
+  if(!G.equip.weapon){toast('武器が無い！');return;}
+  if(!ELEMENTS[el]){return;}
+  if(G.p.gold<700){toast('ゴールドが足りない！');return;}
+  G.p.gold-=700; G.equip.weapon.el=el; sfx('rare');
+  toast(`🔮 武器に${ELEMENTS[el].n}属性を付与した！`); updateUI(); if(G.curB)renderContent(G.curB); saveGame(true);
+}
 // 装備強化（+1〜+10）：装備中の武器を鍛える
 function enhanceWeapon(){
   const w=G.equip.weapon;
@@ -2153,12 +2168,14 @@ function doAtk(){
   if(hi){hi.style.transform='translateX(40px) scale(1.05)';setTimeout(()=>hi.style.transform='',180);}
   const p=G.p,e=G.enemy,crit=Math.random()<(.1+((G.equip.weapon&&G.equip.weapon.crit)||0)+(p.critBonus||0));
   const atkB=G.buffs.atkup>0?1.5:1;
+  const wEl=(G.equip.weapon&&G.equip.weapon.el)||'none';
   let dmg=Math.max(1,Math.floor(p.atk*atkB)-Math.floor(e.def*.45)+Math.floor(Math.random()*8));
   if(crit) dmg=Math.floor(dmg*1.6);
+  dmg=Math.floor(dmg*elemMult(wEl,e)); dmg=Math.max(1,dmg);
   e.hp=Math.max(0,e.hp-dmg);
   sfx('attack'); shakeEnemy();
-  popDmg(dmg,crit?'#f5c842':'#e84a4a',false);
-  setLog(`アルシアのこうげき！${crit?'<span class="hl">クリティカル！</span>':''} <span class="hl">${e.name}</span>に${dmg}ダメージ！`);
+  popDmg(dmg,crit?'#f5c842':(wEl!=='none'&&ELEMENTS[wEl]?ELEMENTS[wEl].c:'#e84a4a'),false);
+  setLog(`アルシアの${wEl!=='none'&&ELEMENTS[wEl]?ELEMENTS[wEl].n+'斬り':'こうげき'}！${crit?'<span class="hl">クリティカル！</span>':''} <span class="hl">${e.name}</span>に${dmg}ダメージ！${elemTag(wEl,e)}`);
   tickStatus();updateBUI();
   if(e.hp<=0){battleWin();return;}
   setTimeout(enemyTurn,950);
