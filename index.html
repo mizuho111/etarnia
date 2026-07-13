@@ -374,7 +374,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="t-div"></div>
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.13-f</div>
+  <div class="t-sub" style="font-size:11px;color:var(--cyan);cursor:pointer;text-decoration:underline" onclick="openHelp()">📖 あそびかた</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.13-g</div>
 </div>
 
 <!-- GAME -->
@@ -393,6 +394,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
     <canvas id="mc"></canvas>
     <div class="sndbtn" id="sndbtn" onclick="toggleMute()">🔊</div>
     <div class="sndbtn" id="setbtn" style="left:48px" onclick="openSettings()">⚙️</div>
+    <div class="sndbtn" id="helpbtn" style="left:88px" onclick="openHelp()">❓</div>
     <div class="minimap"><canvas id="mc2" width="80" height="80"></canvas></div>
     <div class="ll" id="ll">🏰 はじまりの村 エルスタ</div>
     <div class="sban" id="sban" onclick="openM('qum')" style="display:none"></div>
@@ -520,6 +522,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 <div class="ov" id="setm" onclick="closeM('setm')"><div class="modal" onclick="event.stopPropagation()">
   <div class="mhd"><span class="mtt">⚙️ 設定</span><button class="mx" onclick="closeM('setm')">✕</button></div>
   <div class="mbd" id="setbd"></div>
+</div></div>
+
+<div class="ov" id="helpm" onclick="closeM('helpm')"><div class="modal" onclick="event.stopPropagation()">
+  <div class="mhd"><span class="mtt">📖 あそびかた</span><button class="mx" onclick="closeM('helpm')">✕</button></div>
+  <div class="mbd" id="helpbd"></div>
 </div></div>
 
 <div class="ov" id="evm"><div class="modal" onclick="event.stopPropagation()">
@@ -2453,7 +2460,22 @@ function fillSettings(){
     <div class="innbtn" style="margin-bottom:14px;${s.auto?'border-color:var(--green);color:var(--green)':''}" onclick="toggleAuto()">${s.auto?'ON（自動で戦う）':'OFF（手動）'}</div>
     <div class="estt" style="margin:4px 0 8px">🔊 サウンド</div>
     <div class="innbtn" onclick="toggleMute();fillSettings()">${muted?'🔇 OFF':'🔊 ON'}</div>
-    <div class="ininf" style="margin-top:14px;font-size:10px">オート戦闘中も、コマンドを押せば手動操作できます。危険時は自動で回復します。</div>`;
+    <div class="innbtn" style="margin-top:14px;border-color:var(--cyan);color:var(--cyan)" onclick="closeM('setm');openHelp()">📖 あそびかたを見る</div>
+    <div class="ininf" style="margin-top:10px;font-size:10px">オート戦闘中も、コマンドを押せば手動操作できます。危険時は自動で回復します。</div>`;
+}
+function openHelp(){
+  const H=[
+    ['🕹️ 基本','マップはスワイプ／十字キーで移動。光る建物に近づき「入る」で店や施設へ。右下の各ボタンでバトル・スキル・アイテム・クエスト。左上の🔊音・⚙️設定・❓ヘルプ。こまめに💾セーブを。'],
+    ['⚔️ バトル','「こうげき」「スキル(MP消費)」「アイテム」「にげる」。敵のHPを0にすれば勝ち。負けても村に戻るだけ。⚙️設定で戦闘スピード(最大3倍)やオート戦闘に切替可。'],
+    ['🔥 属性・弱点・天候','スキルや付与武器には属性(炎/氷/雷/闇/聖)。敵の弱点を突くと1.6倍、耐性だと0.5倍。「⚡弱点！」表示が目印。天候も影響：雨は雷↑炎↓、夜は敵が強い代わりに闇↑＆レア敵が出やすい。'],
+    ['🧑‍🤝‍🧑 仲間','酒場で雇うか物語で加入。戦闘で自動加勢し、必殺ゲージが溜まると固有必殺技を放つ(2人以上同時で連携技！)。右上チップで作戦(おまかせ/集中/守り/温存)を切替。仲間にもHPがあり、僧侶が回復・蘇生。一緒に戦うと❤️絆が深まり永続強化＆会話が発生。'],
+    ['📈 育成','レベルアップで自動成長＋SPが貯まり「スキルツリー」で強化。武器は「装備強化(+10)」「属性エンチャント」で伸ばせる。強敵は装備をドロップ、竜からは素材「竜のうろこ」。'],
+    ['🎰 ガチャ・お金','村のガチャ堂で最上位武器(SR〜UR)を入手。道中では宝箱・行商人・泉などランダムイベントも。夜に現れる「ミスリルメタル」は逃げ足が速いが倒せば超経験値！'],
+    ['🏆 やり込み','洞窟の「無限ダンジョン」、闘技場のウェーブ、モンスター図鑑、実績・称号。最終ボスは倒すほど強く甦る。属性・仲間・作戦を駆使して限界に挑もう。'],
+    ['💡 ヒント','・強敵は弱点属性＋天候で一気に。・ボスは「溜め」予告中に守り/回復で備える。・詰まったら弱い敵で稼ぐか装備を強化。・エリクサーは道具屋で購入可。'],
+  ];
+  document.getElementById('helpbd').innerHTML=H.map(([t,b])=>`<div class="estt" style="margin:6px 0 4px">${t}</div><div class="ininf" style="text-align:left;margin-bottom:10px;line-height:1.8">${b}</div>`).join('');
+  document.getElementById('helpm').classList.add('show'); sfx('select');
 }
 function setSpeed(n){ if(!G.settings)G.settings={}; G.settings.speed=n; sfx('select'); fillSettings(); saveGame(true); }
 function toggleAuto(){ if(!G.settings)G.settings={}; G.settings.auto=!G.settings.auto; sfx('select'); fillSettings(); saveGame(true); if(G.settings.auto&&G.inBattle&&G.myTurn) setTimeout(autoAct,bd(400)); }
