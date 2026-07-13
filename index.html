@@ -374,7 +374,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="t-div"></div>
   <button class="t-btn" onclick="startGame()">🗡️ 冒険を始める</button>
   <div class="t-sub">タッチして旅立て</div>
-  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.13-d</div>
+  <div class="t-sub" style="font-size:9px;opacity:.55;letter-spacing:1px">ver 2026.07.13-e</div>
 </div>
 
 <!-- GAME -->
@@ -392,6 +392,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
   <div class="mw" id="mw">
     <canvas id="mc"></canvas>
     <div class="sndbtn" id="sndbtn" onclick="toggleMute()">🔊</div>
+    <div class="sndbtn" id="setbtn" style="left:48px" onclick="openSettings()">⚙️</div>
     <div class="minimap"><canvas id="mc2" width="80" height="80"></canvas></div>
     <div class="ll" id="ll">🏰 はじまりの村 エルスタ</div>
     <div class="sban" id="sban" onclick="openM('qum')" style="display:none"></div>
@@ -514,6 +515,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 <div class="ov" id="bitm" onclick="closeM('bitm')"><div class="modal" onclick="event.stopPropagation()">
   <div class="mhd"><span class="mtt">🧪 アイテム選択</span><button class="mx" onclick="closeM('bitm')">✕</button></div>
   <div class="mbd" id="bitbd"></div>
+</div></div>
+
+<div class="ov" id="setm" onclick="closeM('setm')"><div class="modal" onclick="event.stopPropagation()">
+  <div class="mhd"><span class="mtt">⚙️ 設定</span><button class="mx" onclick="closeM('setm')">✕</button></div>
+  <div class="mbd" id="setbd"></div>
 </div></div>
 
 <div class="ov" id="evm"><div class="modal" onclick="event.stopPropagation()">
@@ -805,6 +811,7 @@ const G={
   party:[],
   tactics:'auto',
   weather:'clear',
+  settings:{speed:1,auto:false},
   skills:[
     {id:'slash',name:'魔法斬り',icon:'🗡️',desc:'魔力乗せ斬撃',mp:8,pow:40,t:'atk',el:'none'},
     {id:'fire',name:'ファイアボール',icon:'🔥',desc:'炎の球',mp:12,pow:55,t:'atk',el:'fire'},
@@ -2178,7 +2185,7 @@ function doAtk(){
   setLog(`アルシアの${wEl!=='none'&&ELEMENTS[wEl]?ELEMENTS[wEl].n+'斬り':'こうげき'}！${crit?'<span class="hl">クリティカル！</span>':''} <span class="hl">${e.name}</span>に${dmg}ダメージ！${elemTag(wEl,e)}`);
   tickStatus();updateBUI();
   if(e.hp<=0){battleWin();return;}
-  setTimeout(enemyTurn,950);
+  setTimeout(enemyTurn,bd(950));
 }
 
 function openSkillSelect(){
@@ -2223,7 +2230,7 @@ function castFlourish(sk, done){
   ov.classList.add('show');
   cc.style.animation='none'; void cc.offsetWidth; cc.style.animation='castspin .72s ease-out';
   sfx('magic');
-  setTimeout(()=>{ ov.classList.remove('show'); done(); }, 700);
+  setTimeout(()=>{ ov.classList.remove('show'); done(); }, bd(700));
 }
 function useBSk(id){
   closeM('bskm');
@@ -2290,7 +2297,7 @@ function resolveBSk(sk){
       tickStatus(); updateBUI();
       if(e.hp<=0){ battleWin(); return; }
       if(p.hp<=0){ battleLose(); return; }
-      setTimeout(enemyTurn,1100);
+      setTimeout(enemyTurn,bd(1100));
     });
     return; // 共通末尾(即enemyTurn)をスキップ。詠唱完了後に処理する
   } else {
@@ -2306,7 +2313,7 @@ function resolveBSk(sk){
   tickStatus();updateBUI();
   if(e.hp<=0){battleWin();return;}
   if(p.hp<=0){battleLose();return;}
-  setTimeout(enemyTurn,950);
+  setTimeout(enemyTurn,bd(950));
 }
 
 function openItemSelect(){
@@ -2332,9 +2339,9 @@ function useBItem(id){
     sfx('explosion'); shakeEnemy();
     setLog(`💣 ${it.name}！${G.enemy.name}に${it.v}ダメージ！`);
     tickStatus();updateBUI();if(G.enemy.hp<=0){battleWin();return;}
-    setTimeout(enemyTurn,950);return;
+    setTimeout(enemyTurn,bd(950));return;
   }
-  sfx('item');applyItem(it);tickStatus();updateBUI();setTimeout(enemyTurn,950);
+  sfx('item');applyItem(it);tickStatus();updateBUI();setTimeout(enemyTurn,bd(950));
 }
 
 function applyItem(it){
@@ -2386,10 +2393,49 @@ function beginPlayerTurn(){
     G.pstatus.paralyze--;
     if(Math.random()<0.5){
       setLog('⚡ アルシアは麻痺して動けない！');
-      updateBUI(); setTimeout(enemyTurn,1100); return;
+      updateBUI(); setTimeout(enemyTurn,bd(1100)); return;
     }
   }
   G.myTurn=true; updateBUI();
+  if(G.settings&&G.settings.auto) setTimeout(autoAct, bd(500));
+}
+// 戦闘の間合いに速度倍率を効かせる
+function bd(ms){ return Math.max(50, Math.round(ms/((G.settings&&G.settings.speed)||1))); }
+// ── 設定画面 ──
+function openSettings(){ fillSettings(); document.getElementById('setm').classList.add('show'); }
+function fillSettings(){
+  if(!G.settings) G.settings={speed:1,auto:false};
+  const s=G.settings; const muted=AUDIO.muted;
+  const spBtn=(n,lbl)=>`<div class="innbtn" style="margin:0;flex:1;${s.speed===n?'border-color:var(--gold);color:var(--gold)':''}" onclick="setSpeed(${n})">${lbl}</div>`;
+  document.getElementById('setbd').innerHTML=`
+    <div class="estt" style="margin:4px 0 8px">⚡ 戦闘スピード</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px">${spBtn(1,'ふつう')}${spBtn(2,'2倍')}${spBtn(3,'3倍')}</div>
+    <div class="estt" style="margin:4px 0 8px">🤖 オート戦闘</div>
+    <div class="innbtn" style="margin-bottom:14px;${s.auto?'border-color:var(--green);color:var(--green)':''}" onclick="toggleAuto()">${s.auto?'ON（自動で戦う）':'OFF（手動）'}</div>
+    <div class="estt" style="margin:4px 0 8px">🔊 サウンド</div>
+    <div class="innbtn" onclick="toggleMute();fillSettings()">${muted?'🔇 OFF':'🔊 ON'}</div>
+    <div class="ininf" style="margin-top:14px;font-size:10px">オート戦闘中も、コマンドを押せば手動操作できます。危険時は自動で回復します。</div>`;
+}
+function setSpeed(n){ if(!G.settings)G.settings={}; G.settings.speed=n; sfx('select'); fillSettings(); saveGame(true); }
+function toggleAuto(){ if(!G.settings)G.settings={}; G.settings.auto=!G.settings.auto; sfx('select'); fillSettings(); saveGame(true); if(G.settings.auto&&G.inBattle&&G.myTurn) setTimeout(autoAct,bd(400)); }
+// オート戦闘：プレイヤーの手番を自動で行動
+function autoAct(){
+  if(!G.settings||!G.settings.auto||!G.myTurn||!G.inBattle) return;
+  const p=G.p;
+  // HP危険なら回復（アイテム→スキル）
+  if(p.hp < p.mhp*0.35){
+    const potion=G.items.find(i=>i.qty>0&&(i.t==='heal'||i.t==='fullhp'));
+    if(potion){ useBItem(potion.id); return; }
+    const hsk=G.skills.find(s=>s.t==='self'&&p.mp>=s.mp);
+    if(hsk){ useBSk(hsk.id); return; }
+  }
+  // MPに余裕があれば攻撃スキル（弱点があれば優先）、無ければ通常攻撃
+  const atkSkills=G.skills.filter(s=>(s.t==='atk')&&p.mp>=s.mp);
+  if(atkSkills.length && p.mp>p.mmp*0.3){
+    let pick=atkSkills.find(s=>s.el&&G.enemy&&G.enemy.weak===s.el) || atkSkills[Math.floor(Math.random()*atkSkills.length)];
+    useBSk(pick.id); return;
+  }
+  doAtk();
 }
 
 function tryRun(){
@@ -2408,7 +2454,7 @@ function tryRun(){
   }
   G.myTurn=false;
   if(Math.random()<.55){G.inBattle=false;sfx('run');setLog('うまく逃げ切った！');setTimeout(()=>{showScreen('gs');updateUI();renderMap();playBGM('field');},900);}
-  else{setLog('逃げられなかった！');setTimeout(enemyTurn,800);}
+  else{setLog('逃げられなかった！');setTimeout(enemyTurn,bd(800));}
 }
 
 function cycleTactics(){
@@ -2491,7 +2537,7 @@ function enemyTurn(){
   if(G.party.length){
     allyTurns(); updateBUI();
     if(G.enemy.hp<=0){ battleWin(); return; }
-    setTimeout(enemyAct,850);
+    setTimeout(enemyAct,bd(850));
   } else { enemyAct(); }
 }
 // ボス専用ギミック：激昂フェーズ／溜め→全体大技／自己回復。turnを消費したらtrueを返す
@@ -2511,7 +2557,7 @@ function bossGimmick(e){
     (G.party||[]).forEach(id=>{ const st=G.abt&&G.abt[id]; const a=ALLIES[id]; if(!st||st.down||!a)return; const d=Math.max(1,Math.floor((e.atk*0.9-a.def)*gm)); st.hp=Math.max(0,st.hp-d); if(st.hp<=0){st.down=true;msg+=` / ${a.name}戦闘不能`;} else msg+=` / ${a.name}${d}`; });
     setLog(msg); updateBUI();
     if(p.hp<=0){ battleLose(); return true; }
-    if(G.buffs.collapse>0){ G.buffs.collapse--; setLog('アルシアは動けない…！'); updateBUI(); setTimeout(enemyTurn,1000); return true; }
+    if(G.buffs.collapse>0){ G.buffs.collapse--; setLog('アルシアは動けない…！'); updateBUI(); setTimeout(enemyTurn,bd(1000)); return true; }
     beginPlayerTurn(); return true;
   }
   // 溜め開始（次ターンに全体攻撃を予告）
@@ -2574,7 +2620,7 @@ function enemyAct(){
   if(G.buffs.collapse>0){
     G.buffs.collapse--;
     setLog('アルシアは魔力を使い果たして倒れ込み、動けない…！');
-    updateBUI(); setTimeout(enemyTurn,1000); return;
+    updateBUI(); setTimeout(enemyTurn,bd(1000)); return;
   }
   beginPlayerTurn();
 }
@@ -3020,7 +3066,7 @@ function toast(msg){
 }
 
 function saveGame(silent){
-  try{localStorage.setItem('et2sv',JSON.stringify({p:G.p,items:G.items,quests:G.quests,equip:G.equip,skills:G.skills,visited:[...G.visited],story:G.story,ownedWeapons:G.ownedWeapons,party:G.party,bounty:G.bounty,ach:G.ach,dex:G.dex,arena:{best:G.arena.best},dungeon:{best:G.dungeon.best},sp:G.sp,tree:G.tree,tactics:G.tactics}));if(!silent)toast('💾 セーブした！');}catch(e){}
+  try{localStorage.setItem('et2sv',JSON.stringify({p:G.p,items:G.items,quests:G.quests,equip:G.equip,skills:G.skills,visited:[...G.visited],story:G.story,ownedWeapons:G.ownedWeapons,party:G.party,bounty:G.bounty,ach:G.ach,dex:G.dex,arena:{best:G.arena.best},dungeon:{best:G.dungeon.best},sp:G.sp,tree:G.tree,tactics:G.tactics,settings:G.settings,weather:G.weather}));if(!silent)toast('💾 セーブした！');}catch(e){}
 }
 function loadSave(){
   try{const r=localStorage.getItem('et2sv');if(!r) return;const d=JSON.parse(r);
@@ -3034,6 +3080,8 @@ function loadSave(){
     if(Array.isArray(d.ownedWeapons))G.ownedWeapons=d.ownedWeapons;
     if(Array.isArray(d.party))G.party=d.party.filter(id=>ALLIES[id]);
     if(d.tactics)G.tactics=d.tactics;
+    if(d.settings)Object.assign(G.settings,d.settings);
+    if(d.weather)G.weather=d.weather;
     if(d.bounty)G.bounty=d.bounty;
     if(d.ach)Object.assign(G.ach,d.ach);
     if(Array.isArray(d.dex))G.dex=d.dex;

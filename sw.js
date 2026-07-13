@@ -1,7 +1,7 @@
 // クロニクル・オブ・エターニア Service Worker
 // 方針：インストール時にゲーム本体＋全画像を事前キャッシュ（オフライン/更新直後でも画像が確実に出る）。
 //       HTMLはネットワーク優先で最新を取得、画像はキャッシュ優先で高速＆堅牢。
-const VERSION = '2026.07.13-d';
+const VERSION = '2026.07.13-e';
 const CACHE = 'etarnia-' + VERSION;
 
 const ASSETS = [
